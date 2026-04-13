@@ -2,7 +2,96 @@ schema: workflow/2022.04
 name: Sync Braze to Snowflake
 settings:
   error_notification: true
+  lambda_memory: 1024
+  lambda_timeout: 300
   network: net_5Lnie3
 triggers:
 - id: ti_nNTddJw
-
+steps:
+- namespace: fetch_catalog
+  runtime: nodejs20.x
+  uses: "./fetch_catalog/entry.js"
+  props:
+    braze:
+      authProvisionId: apn_6LhOGA9
+- namespace: flatten_catalog
+  runtime: nodejs20.x
+  uses: "./flatten_catalog/entry.js"
+  props:
+    catalog_items: "{{steps.fetch_catalog.$return_value}}"
+- namespace: create_table
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        CREATE TABLE IF NOT EXISTS MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG (
+            POLL_ID            VARCHAR,
+            QUESTION_KEY       VARCHAR,
+            QUESTION_TEXT      VARCHAR,
+            OPTION_VALUE       VARCHAR,
+            OPTION_LABEL       VARCHAR,
+            UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+            PRIMARY KEY (POLL_ID, QUESTION_KEY, OPTION_VALUE)
+        )
+      query: |-
+        CREATE TABLE IF NOT EXISTS MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG (
+            POLL_ID            VARCHAR,
+            QUESTION_KEY       VARCHAR,
+            QUESTION_TEXT      VARCHAR,
+            OPTION_VALUE       VARCHAR,
+            OPTION_LABEL       VARCHAR,
+            UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+            PRIMARY KEY (POLL_ID, QUESTION_KEY, OPTION_VALUE)
+        )
+      params: []
+- namespace: upsert_catalog
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG AS tgt
+        USING (
+            SELECT
+                s.value:poll_id::STRING       AS POLL_ID,
+                s.value:question_key::STRING  AS QUESTION_KEY,
+                s.value:question_text::STRING AS QUESTION_TEXT,
+                s.value:option_value::STRING  AS OPTION_VALUE,
+                s.value:option_label::STRING  AS OPTION_LABEL
+            FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_catalog.$return_value.rows_json}}$$))) s
+        ) AS src
+        ON tgt.POLL_ID = src.POLL_ID
+           AND tgt.QUESTION_KEY = src.QUESTION_KEY
+           AND tgt.OPTION_VALUE = src.OPTION_VALUE
+        WHEN MATCHED THEN UPDATE SET
+            tgt.QUESTION_TEXT = src.QUESTION_TEXT,
+            tgt.OPTION_LABEL  = src.OPTION_LABEL,
+            tgt.UPDATED_AT    = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL)
+      query: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG AS tgt
+        USING (
+            SELECT
+                s.value:poll_id::STRING       AS POLL_ID,
+                s.value:question_key::STRING  AS QUESTION_KEY,
+                s.value:question_text::STRING AS QUESTION_TEXT,
+                s.value:option_value::STRING  AS OPTION_VALUE,
+                s.value:option_label::STRING  AS OPTION_LABEL
+            FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_catalog.$return_value.rows_json}}$$))) s
+        ) AS src
+        ON tgt.POLL_ID = src.POLL_ID
+           AND tgt.QUESTION_KEY = src.QUESTION_KEY
+           AND tgt.OPTION_VALUE = src.OPTION_VALUE
+        WHEN MATCHED THEN UPDATE SET
+            tgt.QUESTION_TEXT = src.QUESTION_TEXT,
+            tgt.OPTION_LABEL  = src.OPTION_LABEL,
+            tgt.UPDATED_AT    = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL)
+      params: []

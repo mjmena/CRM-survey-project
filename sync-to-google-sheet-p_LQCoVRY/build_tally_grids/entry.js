@@ -42,10 +42,9 @@ export default defineComponent({
 
     for (const [pollId, survey] of Object.entries(surveys)) {
       const grid = [];
-      grid.push([`Survey Tally -- ${pollId}`]);
+      grid.push([pollId]);
       grid.push([`Total Responses: ${survey.totalResponses}`, `Last Updated: ${now} ET`]);
       grid.push([]);
-      grid.push(["Question", "Answer", "Count", "% of Total"]);
 
       // Group by question
       const byQuestion = {};
@@ -56,11 +55,13 @@ export default defineComponent({
       let first = true;
       for (const [question, answers] of Object.entries(byQuestion).sort(([a], [b]) => a.localeCompare(b))) {
         if (!first) grid.push([]);
+        grid.push([`Q: "${question}"`]);
+        grid.push(["Answer", "Count", "%"]);
         for (const a of answers) {
           const pct = survey.totalResponses > 0
             ? ((a.RESPONSE_COUNT / survey.totalResponses) * 100).toFixed(1) + "%"
             : "0%";
-          grid.push([question, a.ANSWER, a.RESPONSE_COUNT, pct]);
+          grid.push([a.ANSWER, a.RESPONSE_COUNT, pct]);
         }
         first = false;
       }
