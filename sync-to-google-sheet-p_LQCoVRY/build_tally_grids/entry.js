@@ -1,13 +1,19 @@
 export default defineComponent({
   name: "Build Tally Grids",
   description: "Transforms Snowflake tally rows into per-survey 2D grids for Google Sheets",
-  async run({ steps, $ }) {
-    const rows = steps.query_all_tallies?.rows || [];
+  props: {
+    tally_rows: {
+      type: "any",
+      label: "Tally Rows",
+      description: "Row results from the Snowflake tally query",
+    },
+  },
+  async run({ $ }) {
+    const rows = this.tally_rows || [];
 
     if (rows.length === 0) {
-      $.export("grids", {});
       $.export("$summary", "No survey responses found");
-      return;
+      return { grids: {} };
     }
 
     // Group rows by POLL_ID
@@ -62,7 +68,7 @@ export default defineComponent({
       grids[pollId] = grid;
     }
 
-    $.export("grids", grids);
     $.export("$summary", `Built tally grids for ${Object.keys(grids).length} survey(s)`);
+    return { grids };
   },
 });

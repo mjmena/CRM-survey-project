@@ -1,19 +1,24 @@
-import { axios } from "@pipedream/platform";
-import google_sheets from "@pipedream/google_sheets";
-
 export default defineComponent({
   name: "Write Tallies to Google Sheet",
   description: "For each survey, finds or creates a tab and writes the tally grid",
   props: {
-    google_sheets,
+    google_sheets: {
+      type: "app",
+      app: "google_sheets",
+    },
     spreadsheet_id: {
       type: "string",
       label: "Spreadsheet ID",
       description: "The ID of the Google Sheet to write tallies to (from the URL)",
     },
+    grids: {
+      type: "any",
+      label: "Tally Grids",
+      description: "Map of poll_id to 2D grid arrays from build_tally_grids",
+    },
   },
-  async run({ steps, $ }) {
-    const grids = steps.build_tally_grids?.grids || {};
+  async run({ $ }) {
+    const grids = this.grids || {};
     const pollIds = Object.keys(grids);
 
     if (pollIds.length === 0) {
@@ -21,15 +26,19 @@ export default defineComponent({
       return;
     }
 
-    const headers = {
-      Authorization: `Bearer ${this.google_sheets.$auth.oauth_access_token}`,
+    const authHeaders = {
+      "Authorization": `Bearer ${this.google_sheets.$auth.oauth_access_token}`,
+      "Content-Type": "application/json",
     };
 
     // Fetch existing tabs once
-    const spreadsheet = await axios($, {
-      url: `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}`,
-      headers,
-    });
+    const spreadsheetResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}`,
+      { headers: authHeaders }
+    );
+    if (!spreadsheetResp.ok) throw new Error(`Failed to fetch spreadsheet: ${spreadsheetResp.status}`);
+    const spreadsheet = await spreadsheetResp.json();
+
     const existingTabs = new Set(
       (spreadsheet.sheets || []).map((s) => s.properties.title.toLowerCase())
     );
@@ -43,33 +52,41 @@ export default defineComponent({
 
       // 1. Create tab if it doesn't exist
       if (!existingTabs.has(tabName.toLowerCase())) {
-        await axios($, {
-          method: "POST",
-          url: `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}:batchUpdate`,
-          headers,
-          data: {
-            requests: [{ addSheet: { properties: { title: tabName } } }],
-          },
-        });
+        const createResp = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}:batchUpdate`,
+          {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({
+              requests: [{ addSheet: { properties: { title: tabName } } }],
+            }),
+          }
+        );
+        if (!createResp.ok) throw new Error(`Failed to create tab "${tabName}": ${createResp.status}`);
         existingTabs.add(tabName.toLowerCase());
       }
 
       // 2. Clear the tab
-      await axios($, {
-        method: "POST",
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'`)}:clear`,
-        headers,
-        data: {},
-      });
+      const clearResp = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'`)}:clear`,
+        {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({}),
+        }
+      );
+      if (!clearResp.ok) throw new Error(`Failed to clear tab "${tabName}": ${clearResp.status}`);
 
       // 3. Write the grid
-      await axios($, {
-        method: "PUT",
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'!A1`)}`,
-        params: { valueInputOption: "USER_ENTERED" },
-        headers,
-        data: { values: grid },
-      });
+      const writeResp = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'!A1`)}?valueInputOption=USER_ENTERED`,
+        {
+          method: "PUT",
+          headers: authHeaders,
+          body: JSON.stringify({ values: grid }),
+        }
+      );
+      if (!writeResp.ok) throw new Error(`Failed to write to tab "${tabName}": ${writeResp.status}`);
 
       results.push({ tabName, rows: grid.length });
     }
