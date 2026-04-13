@@ -24,11 +24,13 @@ steps:
                 COUNT(*)                   AS response_count
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
             GROUP BY RAW_DATA:poll_id::STRING, a.value:question::STRING, a.value:answer::STRING
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
@@ -57,11 +59,13 @@ steps:
                 COUNT(*)                   AS response_count
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
             GROUP BY RAW_DATA:poll_id::STRING, a.value:question::STRING, a.value:answer::STRING
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
