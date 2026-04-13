@@ -1,0 +1,8 @@
+schema: workflow/2022.04
+name: Sync to Google Sheet
+settings:
+  error_notification: true
+  network: net_5Lnie3
+triggers:
+- id: dc_x2udWD8
+
