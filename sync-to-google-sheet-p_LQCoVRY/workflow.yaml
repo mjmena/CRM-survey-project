@@ -18,45 +18,45 @@ steps:
       value: |-
         WITH tally AS (
             SELECT
-                s.POLL_ID,
-                f.key                     AS question,
-                f.value::STRING           AS answer,
-                COUNT(*)                  AS response_count
+                s.RAW_DATA:poll_id::STRING AS poll_id,
+                f.key                      AS question,
+                f.value::STRING            AS answer,
+                COUNT(*)                   AS response_count
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES s,
                  LATERAL FLATTEN(input => s.RAW_DATA) f
             WHERE f.key NOT IN ('poll_id','device_id','user_id','submitted_at')
-            GROUP BY s.POLL_ID, f.key, f.value::STRING
+            GROUP BY s.RAW_DATA:poll_id::STRING, f.key, f.value::STRING
         ),
         totals AS (
-            SELECT POLL_ID, COUNT(*) AS total_responses
+            SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            GROUP BY POLL_ID
+            GROUP BY RAW_DATA:poll_id::STRING
         )
-        SELECT t.POLL_ID, t.total_responses, tally.question, tally.answer, tally.response_count
+        SELECT t.poll_id AS POLL_ID, t.total_responses, tally.question, tally.answer, tally.response_count
         FROM tally
-        JOIN totals t ON tally.POLL_ID = t.POLL_ID
-        ORDER BY t.POLL_ID, tally.question, tally.response_count DESC
+        JOIN totals t ON tally.poll_id = t.poll_id
+        ORDER BY t.poll_id, tally.question, tally.response_count DESC
       query: |-
         WITH tally AS (
             SELECT
-                s.POLL_ID,
-                f.key                     AS question,
-                f.value::STRING           AS answer,
-                COUNT(*)                  AS response_count
+                s.RAW_DATA:poll_id::STRING AS poll_id,
+                f.key                      AS question,
+                f.value::STRING            AS answer,
+                COUNT(*)                   AS response_count
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES s,
                  LATERAL FLATTEN(input => s.RAW_DATA) f
             WHERE f.key NOT IN ('poll_id','device_id','user_id','submitted_at')
-            GROUP BY s.POLL_ID, f.key, f.value::STRING
+            GROUP BY s.RAW_DATA:poll_id::STRING, f.key, f.value::STRING
         ),
         totals AS (
-            SELECT POLL_ID, COUNT(*) AS total_responses
+            SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            GROUP BY POLL_ID
+            GROUP BY RAW_DATA:poll_id::STRING
         )
-        SELECT t.POLL_ID, t.total_responses, tally.question, tally.answer, tally.response_count
+        SELECT t.poll_id AS POLL_ID, t.total_responses, tally.question, tally.answer, tally.response_count
         FROM tally
-        JOIN totals t ON tally.POLL_ID = t.POLL_ID
-        ORDER BY t.POLL_ID, tally.question, tally.response_count DESC
+        JOIN totals t ON tally.poll_id = t.poll_id
+        ORDER BY t.poll_id, tally.question, tally.response_count DESC
       params: []
 - namespace: build_tally_grids
   runtime: nodejs20.x
