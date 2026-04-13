@@ -34,11 +34,15 @@ steps:
         SELECT
             t.poll_id                                     AS POLL_ID,
             t.total_responses                             AS TOTAL_RESPONSES,
-            COALESCE(c.QUESTION_TEXT, tally.question_key) AS QUESTION,
+            COALESCE(q.QUESTION_TEXT, tally.question_key) AS QUESTION,
             COALESCE(c.OPTION_LABEL, tally.answer_value)  AS ANSWER,
             tally.response_count                          AS RESPONSE_COUNT
         FROM tally
         JOIN totals t ON tally.poll_id = t.poll_id
+        LEFT JOIN (
+            SELECT DISTINCT POLL_ID, QUESTION_KEY, QUESTION_TEXT
+            FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
+        ) q ON tally.poll_id = q.POLL_ID AND tally.question_key = q.QUESTION_KEY
         LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
             ON tally.poll_id = c.POLL_ID
             AND tally.question_key = c.QUESTION_KEY
@@ -63,11 +67,15 @@ steps:
         SELECT
             t.poll_id                                     AS POLL_ID,
             t.total_responses                             AS TOTAL_RESPONSES,
-            COALESCE(c.QUESTION_TEXT, tally.question_key) AS QUESTION,
+            COALESCE(q.QUESTION_TEXT, tally.question_key) AS QUESTION,
             COALESCE(c.OPTION_LABEL, tally.answer_value)  AS ANSWER,
             tally.response_count                          AS RESPONSE_COUNT
         FROM tally
         JOIN totals t ON tally.poll_id = t.poll_id
+        LEFT JOIN (
+            SELECT DISTINCT POLL_ID, QUESTION_KEY, QUESTION_TEXT
+            FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
+        ) q ON tally.poll_id = q.POLL_ID AND tally.question_key = q.QUESTION_KEY
         LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
             ON tally.poll_id = c.POLL_ID
             AND tally.question_key = c.QUESTION_KEY
