@@ -85,5 +85,6 @@ steps:
   props:
     google_sheets:
       authProvisionId: apn_MGhwj7z
+    spreadsheet_id: 19pUJyXDsmDRjZSRaMxpAdLj1ZxVZqA5ByAjsJF2GFxM
     grids: "{{steps.build_tally_grids.$return_value.grids}}"
 
