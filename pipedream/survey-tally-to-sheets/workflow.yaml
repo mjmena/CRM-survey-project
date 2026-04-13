@@ -1,0 +1,53 @@
+schema: workflow/2022.04
+name: Survey Tally to Google Sheets
+settings:
+  error_notification: true
+  lambda_memory: 1024
+  lambda_timeout: 300
+  network: net_5Lnie3
+triggers:
+- id: hi_survey_tally_cron
+  type: cron
+  cron: "*/15 * * * *"
+steps:
+- namespace: query_all_tallies
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      query: >
+        WITH tally AS (
+            SELECT
+                s.POLL_ID,
+                f.key                     AS question,
+                f.value::STRING           AS answer,
+                COUNT(*)                  AS response_count
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES s,
+                 LATERAL FLATTEN(input => s.RAW_DATA) f
+            WHERE f.key NOT IN ('poll_id','device_id','user_id','submitted_at')
+            GROUP BY s.POLL_ID, f.key, f.value::STRING
+        ),
+        totals AS (
+            SELECT POLL_ID, COUNT(*) AS total_responses
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            GROUP BY POLL_ID
+        )
+        SELECT t.POLL_ID, t.total_responses, tally.question, tally.answer, tally.response_count
+        FROM tally
+        JOIN totals t ON tally.POLL_ID = t.POLL_ID
+        ORDER BY t.POLL_ID, tally.question, tally.response_count DESC
+- namespace: build_tally_grids
+  runtime: nodejs20.x
+  uses: "./build_tally_grids/entry.js"
+- namespace: write_tallies_to_sheet
+  runtime: nodejs20.x
+  uses: "./write_tallies_to_sheet/entry.js"
+  props:
+    google_sheets:
+      authProvisionId: apn_google_sheets
+    spreadsheet_id:
+      type: string
+      label: Spreadsheet ID
+      description: The ID of the Google Sheet to write tallies to
