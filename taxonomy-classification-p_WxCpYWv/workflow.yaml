@@ -40,19 +40,32 @@ steps:
         FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
         ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
       params: []
+- namespace: build_prompt
+  runtime: nodejs20.x
+  uses: "./build_prompt/entry.js"
+  props:
+    catalog_rows: "{{steps.fetch_catalog.$return_value}}"
+    existing_taxonomies: "{{steps.fetch_existing_taxonomies.$return_value}}"
 - namespace: classify_with_ai
   runtime: nodejs20.x
-  uses: "./classify_with_ai/entry.js"
+  uses: anthropic-send-message@0.0.3
   props:
     anthropic:
       authProvisionId: apn_anthropic
-    catalog_rows: "{{steps.fetch_catalog.$return_value}}"
-    existing_taxonomies: "{{steps.fetch_existing_taxonomies.$return_value}}"
+    model: claude-sonnet-4-20250514
+    system_prompt: "{{steps.build_prompt.$return_value.system_prompt}}"
+    user_message: "{{steps.build_prompt.$return_value.user_message}}"
+    max_tokens: 8192
+- namespace: parse_results
+  runtime: nodejs20.x
+  uses: "./parse_results/entry.js"
+  props:
+    ai_response: "{{steps.classify_with_ai.$return_value}}"
 - namespace: flatten_results
   runtime: nodejs20.x
   uses: "./flatten_results/entry.js"
   props:
-    ai_results: "{{steps.classify_with_ai.$return_value}}"
+    ai_results: "{{steps.parse_results.$return_value}}"
 - namespace: upsert_taxonomy
   runtime: nodejs20.x
   uses: snowflake-execute-sql-query@0.2.3

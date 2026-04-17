@@ -1,12 +1,8 @@
 export default defineComponent({
-  name: "Classify With AI",
+  name: "Build Prompt",
   description:
-    "Sends survey catalog data to Claude for taxonomy classification. Uses full poll context and existing taxonomies for consistency.",
+    "Builds system and user prompts from catalog data and existing taxonomies for Claude classification.",
   props: {
-    anthropic: {
-      type: "app",
-      app: "anthropic",
-    },
     catalog_rows: {
       type: "any",
       label: "Catalog Rows",
@@ -25,13 +21,13 @@ export default defineComponent({
 
     if (catalogRows.length === 0) {
       $.export("$summary", "No catalog rows to classify");
-      return { results: [], results_json: "[]" };
+      return { system_prompt: "", user_message: "", poll_count: 0, row_count: 0 };
     }
 
     // ---------------------------------------------------------------
     // System prompt
     // ---------------------------------------------------------------
-    const systemPrompt = `You are a taxonomy classification engine for a CRM survey system.
+    const system_prompt = `You are a taxonomy classification engine for a CRM survey system.
 
 You assign each survey answer option to one or more classifications. There are three buckets with DIFFERENT output formats:
 
@@ -124,7 +120,7 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
     }
 
     // ---------------------------------------------------------------
-    // Group catalog rows by poll_id
+    // Group catalog rows by poll_id and build per-poll blocks
     // ---------------------------------------------------------------
     const polls = new Map();
     for (const row of catalogRows) {
@@ -164,49 +160,18 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
       pollBlocks.push(block);
     }
 
-    const userPrompt = `${existingRef}Classify each answer option in the following surveys.\n\n${pollBlocks.join("\n")}`;
-
-    // ---------------------------------------------------------------
-    // Call Claude API
-    // ---------------------------------------------------------------
-    const apiKey = this.anthropic.$auth.api_key;
-
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`Anthropic API error ${resp.status}: ${errText}`);
-    }
-
-    const data = await resp.json();
-    const text = data.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-
-    // Parse JSON (strip markdown fencing if present)
-    const cleaned = text
-      .replace(/^```(?:json)?\s*/m, "")
-      .replace(/\s*```$/m, "");
-    const results = JSON.parse(cleaned);
+    const user_message = `${existingRef}Classify each answer option in the following surveys.\n\n${pollBlocks.join("\n")}`;
 
     $.export(
       "$summary",
-      `Classified ${catalogRows.length} options across ${polls.size} polls → ${results.length} results`
+      `Built prompts for ${catalogRows.length} options across ${polls.size} polls`
     );
-    return { results, results_json: JSON.stringify(results) };
+
+    return {
+      system_prompt,
+      user_message,
+      poll_count: polls.size,
+      row_count: catalogRows.length,
+    };
   },
 });
