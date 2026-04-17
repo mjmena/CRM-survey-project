@@ -1,0 +1,7 @@
+schema: workflow/2022.04
+name: Taxonomy Classification
+settings:
+  error_notification: true
+  lambda_memory: 1028
+  lambda_timeout: 240
+
