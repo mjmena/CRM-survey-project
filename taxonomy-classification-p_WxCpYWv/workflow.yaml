@@ -7,15 +7,16 @@ settings:
   network: net_5Lnie3
 triggers:
 - id: ti_taxonomy
-  runtime: nodejs20.x
   uses: snowflake-new-row@0.0.4
   props:
     snowflake:
       authProvisionId: apn_yghdQYJ
     tableName: MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-    uniqueKey: POLL_ID
     timer:
       intervalSeconds: 900
+    uniqueKey: POLL_ID
+- id: dc_kjuLB8b
+- id: hi_VOHV2Qx
 steps:
 - namespace: check_already_classified
   runtime: nodejs20.x
@@ -85,8 +86,8 @@ steps:
   uses: anthropic-chat@0.2.2
   props:
     anthropic:
-      authProvisionId: apn_anthropic
-    model: claude-sonnet-4-20250514
+      authProvisionId: apn_Oghan1O
+    model: claude-sonnet-4-5-20250929
     userMessage: "{{steps.build_prompt.$return_value.combined_message}}"
     maxTokensToSample: 8192
 - namespace: parse_results
@@ -189,3 +190,4 @@ steps:
             src.CONFIDENCE
         )
       params: []
+
