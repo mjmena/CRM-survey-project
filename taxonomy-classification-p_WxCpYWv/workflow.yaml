@@ -16,13 +16,19 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        ORDER BY POLL_ID, QUESTION_KEY, OPTION_VALUE
+        SELECT c.POLL_ID, c.QUESTION_KEY, c.QUESTION_TEXT, c.OPTION_VALUE, c.OPTION_LABEL
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
+        WHERE c.POLL_ID NOT IN (
+            SELECT DISTINCT POLL_ID FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        )
+        ORDER BY c.POLL_ID, c.QUESTION_KEY, c.OPTION_VALUE
       query: |-
-        SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        ORDER BY POLL_ID, QUESTION_KEY, OPTION_VALUE
+        SELECT c.POLL_ID, c.QUESTION_KEY, c.QUESTION_TEXT, c.OPTION_VALUE, c.OPTION_LABEL
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
+        WHERE c.POLL_ID NOT IN (
+            SELECT DISTINCT POLL_ID FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        )
+        ORDER BY c.POLL_ID, c.QUESTION_KEY, c.OPTION_VALUE
       params: []
 - namespace: fetch_existing_taxonomies
   runtime: nodejs20.x
@@ -46,6 +52,11 @@ steps:
   props:
     catalog_rows: "{{steps.fetch_catalog.$return_value}}"
     existing_taxonomies: "{{steps.fetch_existing_taxonomies.$return_value}}"
+- namespace: check_new_polls
+  runtime: nodejs20.x
+  uses: "./check_new_polls/entry.js"
+  props:
+    build_result: "{{steps.build_prompt.$return_value}}"
 - namespace: classify_with_ai
   runtime: nodejs20.x
   uses: anthropic-chat@0.2.2
@@ -53,7 +64,7 @@ steps:
     anthropic:
       authProvisionId: apn_anthropic
     model: claude-sonnet-4-20250514
-    userMessage: "{{steps.build_prompt.$return_value.combined_message}}"
+    userMessage: "{{steps.check_new_polls.$return_value.combined_message}}"
     maxTokensToSample: 8192
 - namespace: parse_results
   runtime: nodejs20.x
