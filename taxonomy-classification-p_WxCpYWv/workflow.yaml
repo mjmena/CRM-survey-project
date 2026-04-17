@@ -4,4 +4,142 @@ settings:
   error_notification: true
   lambda_memory: 1028
   lambda_timeout: 240
-
+  network: net_5Lnie3
+triggers:
+- id: ti_taxonomy
+steps:
+- namespace: fetch_catalog
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
+        ORDER BY POLL_ID, QUESTION_KEY, OPTION_VALUE
+      query: |-
+        SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
+        ORDER BY POLL_ID, QUESTION_KEY, OPTION_VALUE
+      params: []
+- namespace: fetch_existing_taxonomies
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
+      query: |-
+        SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
+      params: []
+- namespace: classify_with_ai
+  runtime: nodejs20.x
+  uses: "./classify_with_ai/entry.js"
+  props:
+    anthropic:
+      authProvisionId: apn_anthropic
+    catalog_rows: "{{steps.fetch_catalog.$return_value}}"
+    existing_taxonomies: "{{steps.fetch_existing_taxonomies.$return_value}}"
+- namespace: flatten_results
+  runtime: nodejs20.x
+  uses: "./flatten_results/entry.js"
+  props:
+    ai_results: "{{steps.classify_with_ai.$return_value}}"
+- namespace: upsert_taxonomy
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        USING (
+            SELECT
+                s.value:poll_id::STRING         AS POLL_ID,
+                s.value:question_key::STRING    AS QUESTION_KEY,
+                s.value:option_value::STRING    AS OPTION_VALUE,
+                s.value:bucket::STRING          AS BUCKET,
+                s.value:taxonomy_path::STRING   AS TAXONOMY_PATH,
+                s.value:taxonomy_depth::INTEGER AS TAXONOMY_DEPTH,
+                s.value:taxonomy_levels         AS TAXONOMY_LEVELS,
+                s.value:demographic_key::STRING  AS DEMOGRAPHIC_KEY,
+                s.value:demographic_value::STRING AS DEMOGRAPHIC_VALUE,
+                s.value:demographic_type::STRING AS DEMOGRAPHIC_TYPE,
+                s.value:confidence::FLOAT       AS CONFIDENCE
+            FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
+        ) AS src
+        ON  tgt.POLL_ID       = src.POLL_ID
+        AND tgt.QUESTION_KEY  = src.QUESTION_KEY
+        AND tgt.OPTION_VALUE  = src.OPTION_VALUE
+        AND tgt.BUCKET        = src.BUCKET
+        AND COALESCE(tgt.TAXONOMY_PATH, '') = COALESCE(src.TAXONOMY_PATH, '')
+        AND COALESCE(tgt.DEMOGRAPHIC_KEY, '') = COALESCE(src.DEMOGRAPHIC_KEY, '')
+        WHEN MATCHED THEN UPDATE SET
+            tgt.TAXONOMY_DEPTH   = src.TAXONOMY_DEPTH,
+            tgt.TAXONOMY_LEVELS  = src.TAXONOMY_LEVELS,
+            tgt.DEMOGRAPHIC_VALUE = src.DEMOGRAPHIC_VALUE,
+            tgt.DEMOGRAPHIC_TYPE  = src.DEMOGRAPHIC_TYPE,
+            tgt.CONFIDENCE        = src.CONFIDENCE,
+            tgt.UPDATED_AT        = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (
+            POLL_ID, QUESTION_KEY, OPTION_VALUE, BUCKET,
+            TAXONOMY_PATH, TAXONOMY_DEPTH, TAXONOMY_LEVELS,
+            DEMOGRAPHIC_KEY, DEMOGRAPHIC_VALUE, DEMOGRAPHIC_TYPE,
+            CONFIDENCE
+        ) VALUES (
+            src.POLL_ID, src.QUESTION_KEY, src.OPTION_VALUE, src.BUCKET,
+            src.TAXONOMY_PATH, src.TAXONOMY_DEPTH, src.TAXONOMY_LEVELS,
+            src.DEMOGRAPHIC_KEY, src.DEMOGRAPHIC_VALUE, src.DEMOGRAPHIC_TYPE,
+            src.CONFIDENCE
+        )
+      query: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        USING (
+            SELECT
+                s.value:poll_id::STRING         AS POLL_ID,
+                s.value:question_key::STRING    AS QUESTION_KEY,
+                s.value:option_value::STRING    AS OPTION_VALUE,
+                s.value:bucket::STRING          AS BUCKET,
+                s.value:taxonomy_path::STRING   AS TAXONOMY_PATH,
+                s.value:taxonomy_depth::INTEGER AS TAXONOMY_DEPTH,
+                s.value:taxonomy_levels         AS TAXONOMY_LEVELS,
+                s.value:demographic_key::STRING  AS DEMOGRAPHIC_KEY,
+                s.value:demographic_value::STRING AS DEMOGRAPHIC_VALUE,
+                s.value:demographic_type::STRING AS DEMOGRAPHIC_TYPE,
+                s.value:confidence::FLOAT       AS CONFIDENCE
+            FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
+        ) AS src
+        ON  tgt.POLL_ID       = src.POLL_ID
+        AND tgt.QUESTION_KEY  = src.QUESTION_KEY
+        AND tgt.OPTION_VALUE  = src.OPTION_VALUE
+        AND tgt.BUCKET        = src.BUCKET
+        AND COALESCE(tgt.TAXONOMY_PATH, '') = COALESCE(src.TAXONOMY_PATH, '')
+        AND COALESCE(tgt.DEMOGRAPHIC_KEY, '') = COALESCE(src.DEMOGRAPHIC_KEY, '')
+        WHEN MATCHED THEN UPDATE SET
+            tgt.TAXONOMY_DEPTH   = src.TAXONOMY_DEPTH,
+            tgt.TAXONOMY_LEVELS  = src.TAXONOMY_LEVELS,
+            tgt.DEMOGRAPHIC_VALUE = src.DEMOGRAPHIC_VALUE,
+            tgt.DEMOGRAPHIC_TYPE  = src.DEMOGRAPHIC_TYPE,
+            tgt.CONFIDENCE        = src.CONFIDENCE,
+            tgt.UPDATED_AT        = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (
+            POLL_ID, QUESTION_KEY, OPTION_VALUE, BUCKET,
+            TAXONOMY_PATH, TAXONOMY_DEPTH, TAXONOMY_LEVELS,
+            DEMOGRAPHIC_KEY, DEMOGRAPHIC_VALUE, DEMOGRAPHIC_TYPE,
+            CONFIDENCE
+        ) VALUES (
+            src.POLL_ID, src.QUESTION_KEY, src.OPTION_VALUE, src.BUCKET,
+            src.TAXONOMY_PATH, src.TAXONOMY_DEPTH, src.TAXONOMY_LEVELS,
+            src.DEMOGRAPHIC_KEY, src.DEMOGRAPHIC_VALUE, src.DEMOGRAPHIC_TYPE,
+            src.CONFIDENCE
+        )
+      params: []

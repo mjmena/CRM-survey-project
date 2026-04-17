@@ -1,0 +1,14 @@
+{
+  "name": "classify-taxonomy",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AI-powered taxonomy classification for CRM survey answer options",
+  "main": "classify.js",
+  "scripts": {
+    "classify": "node classify.js --input catalog.json --dry-run",
+    "classify:force": "node classify.js --input catalog.json --force --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  }
+}
