@@ -18,6 +18,11 @@ triggers:
 - id: dc_kjuLB8b
 - id: hi_VOHV2Qx
 steps:
+- namespace: extract_poll_id
+  runtime: nodejs20.x
+  uses: "./extract_poll_id/entry.js"
+  props:
+    trigger_event: "{{steps.trigger.event}}"
 - namespace: check_already_classified
   runtime: nodejs20.x
   uses: snowflake-execute-sql-query@0.2.3
@@ -28,18 +33,18 @@ steps:
       value: |-
         SELECT COUNT(*) AS CNT
         FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
-        WHERE POLL_ID = '{{steps.trigger.event.POLL_ID}}'
+        WHERE POLL_ID = '{{steps.extract_poll_id.$return_value.poll_id}}'
       query: |-
         SELECT COUNT(*) AS CNT
         FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
-        WHERE POLL_ID = '{{steps.trigger.event.POLL_ID}}'
+        WHERE POLL_ID = '{{steps.extract_poll_id.$return_value.poll_id}}'
       params: []
 - namespace: skip_if_classified
   runtime: nodejs20.x
   uses: "./check_new_polls/entry.js"
   props:
     build_result:
-      poll_id: "{{steps.trigger.event.POLL_ID}}"
+      poll_id: "{{steps.extract_poll_id.$return_value.poll_id}}"
       already_classified: "{{steps.check_already_classified.$return_value[0].CNT}}"
 - namespace: fetch_catalog
   runtime: nodejs20.x
@@ -51,12 +56,12 @@ steps:
       value: |-
         SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
         FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        WHERE POLL_ID = '{{steps.trigger.event.POLL_ID}}'
+        WHERE POLL_ID = '{{steps.extract_poll_id.$return_value.poll_id}}'
         ORDER BY QUESTION_KEY, OPTION_VALUE
       query: |-
         SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL
         FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        WHERE POLL_ID = '{{steps.trigger.event.POLL_ID}}'
+        WHERE POLL_ID = '{{steps.extract_poll_id.$return_value.poll_id}}'
         ORDER BY QUESTION_KEY, OPTION_VALUE
       params: []
 - namespace: fetch_existing_taxonomies
@@ -190,4 +195,3 @@ steps:
             src.CONFIDENCE
         )
       params: []
-
