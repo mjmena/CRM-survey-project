@@ -162,6 +162,10 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
 
     const user_message = `${existingRef}Classify each answer option in the following surveys.\n\n${pollBlocks.join("\n")}`;
 
+    // Combine system + user into a single message for the built-in
+    // anthropic-chat action which lacks a separate system_prompt prop
+    const combined_message = `<instructions>\n${system_prompt}\n</instructions>\n\n${user_message}`;
+
     $.export(
       "$summary",
       `Built prompts for ${catalogRows.length} options across ${polls.size} polls`
@@ -170,6 +174,7 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
     return {
       system_prompt,
       user_message,
+      combined_message,
       poll_count: polls.size,
       row_count: catalogRows.length,
     };
