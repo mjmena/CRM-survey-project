@@ -1,22 +1,23 @@
 export default defineComponent({
-  name: "Check New Polls",
+  name: "Skip If Classified",
   description:
-    "Exits the workflow early if there are no new polls to classify.",
+    "Exits the workflow early if the triggered poll has already been classified.",
   props: {
     build_result: {
       type: "any",
-      label: "Build Result",
-      description: "Return value from the build_prompt step",
+      label: "Check Result",
+      description: "Object with poll_id and already_classified count",
     },
   },
   async run({ $ }) {
-    if (!this.build_result?.row_count) {
-      $.flow.exit("No new polls to classify");
+    const pollId = this.build_result?.poll_id;
+    const count = Number(this.build_result?.already_classified || 0);
+
+    if (count > 0) {
+      $.flow.exit(`Poll "${pollId}" already has ${count} taxonomy rows — skipping`);
     }
-    $.export(
-      "$summary",
-      `${this.build_result.row_count} options across ${this.build_result.poll_count} new poll(s) to classify`
-    );
-    return this.build_result;
+
+    $.export("$summary", `Poll "${pollId}" is new — proceeding with classification`);
+    return { poll_id: pollId };
   },
 });
