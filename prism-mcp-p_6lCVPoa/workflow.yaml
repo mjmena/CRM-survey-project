@@ -14,13 +14,14 @@ steps:
   props:
     braze:
       authProvisionId: apn_6LhOGA9
-
+    mcp_shared_secret:
+      _enc: aebd13d6c8781e94f4f495fa2ee2bfa2e0e4287ec2cf41dd9372bc14fef9a9ac$$lujPMS4OcgJ66GXl/xhoh3RzIPyP9AePrmxtwgeB0NYMf46f7yl9iPsD--9dMauf0K6GCGZO1S--4dthREBki0Hcv14uqMmNVw==
+    template_campaign_id: 23b83210-a4f8-4f30-ac54-75085eebf578
 - namespace: build_sql
   runtime: nodejs20.x
   uses: "./build_sql/entry.mjs"
   props:
     dispatch: "{{steps.parse_and_dispatch.$return_value}}"
-
 - namespace: snowflake_query
   runtime: nodejs20.x
   uses: snowflake-execute-sql-query@0.2.3
@@ -32,10 +33,10 @@ steps:
       query: "{{steps.build_sql.$return_value.sql}}"
       params: "{{steps.build_sql.$return_value.params}}"
       usePreparedStatements: true
-
 - namespace: format_response
   runtime: nodejs20.x
   uses: "./format_response/entry.mjs"
   props:
     dispatch: "{{steps.parse_and_dispatch.$return_value}}"
     rows: "{{steps.snowflake_query.$return_value}}"
+
