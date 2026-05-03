@@ -66,7 +66,7 @@ You assign each survey answer option to one or more classifications. There are t
 - Use the ENTIRE POLL as context. The poll topic, question wording, and all answer options together should inform each classification.
 - **Concrete only**: Only classify what the user EXPLICITLY stated. Do NOT infer attributes the user did not directly express. If someone picks "Lakers", that means they prefer the Lakers — it does NOT mean they live in LA or are male.
 - An answer CAN have multiple classifications (e.g., one "preference" and one "consumption"). Only assign multiple when genuinely warranted.
-- Some answers should receive NO classification: "Prefer not to say", "Something Else", "Other", "A different team", or similar non-informative catch-all options. Return an empty taxonomies array for these.
+- Options explicitly marked **[catch-all]** in the list below MUST return an empty `taxonomies` array — no exceptions. These are options like "Prefer not to say", "Other", "Something Else", or "I won't be watching" that the survey author flagged as non-informative. Do not attempt to classify them.
 - Be consistent: the same concept should always use the same taxonomy segment.
 - For segment variants of the same poll (e.g., segment-a, segment-b), use identical classifications.
 
@@ -140,6 +140,7 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
         questions.get(qk).options.push({
           value: r.OPTION_VALUE,
           label: r.OPTION_LABEL,
+          is_catch_all: r.IS_CATCH_ALL === true,
         });
       }
 
@@ -153,7 +154,8 @@ Return ONLY the JSON array, no markdown fencing or extra text.`;
         block += `    Options:\n`;
         for (const opt of qData.options) {
           const label = opt.label !== opt.value ? ` (${opt.label})` : "";
-          block += `      - ${opt.value}${label}\n`;
+          const catchAllMarker = opt.is_catch_all ? " [catch-all]" : "";
+          block += `      - ${opt.value}${label}${catchAllMarker}\n`;
         }
         qNum++;
       }

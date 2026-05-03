@@ -33,6 +33,7 @@ steps:
             QUESTION_TEXT      VARCHAR,
             OPTION_VALUE       VARCHAR,
             OPTION_LABEL       VARCHAR,
+            IS_CATCH_ALL       BOOLEAN DEFAULT FALSE,
             UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
             PRIMARY KEY (POLL_ID, QUESTION_KEY, OPTION_VALUE)
         )
@@ -43,6 +44,7 @@ steps:
             QUESTION_TEXT      VARCHAR,
             OPTION_VALUE       VARCHAR,
             OPTION_LABEL       VARCHAR,
+            IS_CATCH_ALL       BOOLEAN DEFAULT FALSE,
             UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
             PRIMARY KEY (POLL_ID, QUESTION_KEY, OPTION_VALUE)
         )
@@ -58,11 +60,12 @@ steps:
         MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG AS tgt
         USING (
             SELECT
-                s.value:poll_id::STRING       AS POLL_ID,
-                s.value:question_key::STRING  AS QUESTION_KEY,
-                s.value:question_text::STRING AS QUESTION_TEXT,
-                s.value:option_value::STRING  AS OPTION_VALUE,
-                s.value:option_label::STRING  AS OPTION_LABEL
+                s.value:poll_id::STRING        AS POLL_ID,
+                s.value:question_key::STRING   AS QUESTION_KEY,
+                s.value:question_text::STRING  AS QUESTION_TEXT,
+                s.value:option_value::STRING   AS OPTION_VALUE,
+                s.value:option_label::STRING   AS OPTION_LABEL,
+                s.value:is_catch_all::BOOLEAN  AS IS_CATCH_ALL
             FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_catalog.$return_value.rows_json}}$$))) s
         ) AS src
         ON tgt.POLL_ID = src.POLL_ID
@@ -71,18 +74,20 @@ steps:
         WHEN MATCHED THEN UPDATE SET
             tgt.QUESTION_TEXT = src.QUESTION_TEXT,
             tgt.OPTION_LABEL  = src.OPTION_LABEL,
+            tgt.IS_CATCH_ALL  = src.IS_CATCH_ALL,
             tgt.UPDATED_AT    = CURRENT_TIMESTAMP()
-        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL)
-            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL)
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL, IS_CATCH_ALL)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL, src.IS_CATCH_ALL)
       query: |-
         MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG AS tgt
         USING (
             SELECT
-                s.value:poll_id::STRING       AS POLL_ID,
-                s.value:question_key::STRING  AS QUESTION_KEY,
-                s.value:question_text::STRING AS QUESTION_TEXT,
-                s.value:option_value::STRING  AS OPTION_VALUE,
-                s.value:option_label::STRING  AS OPTION_LABEL
+                s.value:poll_id::STRING        AS POLL_ID,
+                s.value:question_key::STRING   AS QUESTION_KEY,
+                s.value:question_text::STRING  AS QUESTION_TEXT,
+                s.value:option_value::STRING   AS OPTION_VALUE,
+                s.value:option_label::STRING   AS OPTION_LABEL,
+                s.value:is_catch_all::BOOLEAN  AS IS_CATCH_ALL
             FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_catalog.$return_value.rows_json}}$$))) s
         ) AS src
         ON tgt.POLL_ID = src.POLL_ID
@@ -91,8 +96,9 @@ steps:
         WHEN MATCHED THEN UPDATE SET
             tgt.QUESTION_TEXT = src.QUESTION_TEXT,
             tgt.OPTION_LABEL  = src.OPTION_LABEL,
+            tgt.IS_CATCH_ALL  = src.IS_CATCH_ALL,
             tgt.UPDATED_AT    = CURRENT_TIMESTAMP()
-        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL)
-            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL)
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL, IS_CATCH_ALL)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.QUESTION_TEXT, src.OPTION_VALUE, src.OPTION_LABEL, src.IS_CATCH_ALL)
       params: []
 
