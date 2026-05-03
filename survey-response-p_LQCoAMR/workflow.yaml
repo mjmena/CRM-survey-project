@@ -20,11 +20,11 @@ steps:
     sql:
       value: |-
         INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
-        SELECT PARSE_JSON({{JSON.stringify(steps.trigger.event.body)}});
+        SELECT PARSE_JSON({{JSON.stringify(steps.code.$return_value)}});
       query: |-
         INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
         SELECT PARSE_JSON(?);
       params:
-      - "{{JSON.stringify(steps.trigger.event.body)}}"
+      - "{{JSON.stringify(steps.code.$return_value)}}"
       usePreparedStatements: true
 

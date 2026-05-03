@@ -124,7 +124,9 @@
   })();
 
   const DEVICE_ID = '{{targeted_device.${id}}}';
+  const EXTERNAL_ID = '{{${user_id}}}';
   const POLL_ID = '{{ poll.id }}';
+  const MARKET_NAME = '{{event_properties.${market_name}}}';
   const SUBMIT_URL = 'https://eo9ujqadjkl294i.m.pipedream.net';
 
   const state = {
@@ -378,6 +380,9 @@
     const payload = {
       poll_id: POLL_ID,
       device_id: DEVICE_ID,
+      external_id: EXTERNAL_ID,
+      market_name: MARKET_NAME,
+      variant: VARIANT,
       submitted_at: new Date().toISOString(),
       answers: Object.entries(state.answers)
         .filter(([qk]) => SURVEY.questions[qk])

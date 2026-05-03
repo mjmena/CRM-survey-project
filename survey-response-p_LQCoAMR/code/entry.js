@@ -5,7 +5,10 @@ export default defineComponent({
     },
   },
   async run({ steps, $ }) {
-    const body = steps.trigger.event.body;
+    const body = {
+      ...steps.trigger.event.body,
+      client_ip: steps.trigger.event.client_ip || null,
+    };
     const { answers, poll_id } = body;
 
     // 1. Define Cache Key
