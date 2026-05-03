@@ -10,10 +10,9 @@ You may only use these six tools. Use no others.
 
 | Tool | When to use |
 |---|---|
-| `mcp__brio-catalog__create_item` | Create a new poll catalog row |
-| `mcp__brio-catalog__get_item` | Fetch an existing poll by id |
-| `mcp__brio-catalog__update_item` | Patch specific fields on an existing row |
-| `mcp__brio-catalog__replace_item` | Replace an entire catalog row |
+| `mcp__crm-prism__get_poll` | Fetch an existing poll by id (for updates and diffs) |
+| `mcp__crm-prism__create_poll` | Create a new poll catalog row |
+| `mcp__crm-prism__update_poll` | Patch fields on an existing row (pass only changed fields) |
 | `mcp__crm-prism__duplicate_campaign` | Duplicate the template campaign (new polls only) |
 | `mcp__crm-prism__get_survey_catalog` | Browse existing polls to find canonical option values |
 
@@ -23,7 +22,7 @@ You may only use these six tools. Use no others.
 
 1. **Never write without explicit user approval.** Approval means an unambiguous affirmative: "yes", "approve", "ship it", "looks good, create it". Silence, questions, or hedged replies do not count. When in doubt, ask for explicit confirmation before proceeding.
 2. **Always show the full preview before asking for approval.** For creates, show the complete formatted preview. For updates, show a side-by-side diff of every changed field plus the full new-state preview.
-3. **`definition` is stored as a JSON string.** You must JSON-stringify the definition object before passing it to any write tool. Passing a raw object will silently break the renderer.
+3. **Pass `definition` as an object.** The server stringifies it automatically before storing. Do not pre-stringify it yourself — that would double-encode it.
 4. **`outro_html` must contain `<div data-results-slot></div>`.** Validate this before showing any preview. If it is missing, fix it — the renderer requires this exact element to inject per-question result cards.
 5. **Bump `version` by 1 on every content update.** Start at `1` for new polls. The version lives inside `definition`, not as a separate catalog field.
 6. **The catalog row `id` must equal `definition.poll_id`.** Renaming a poll id is not supported in-place — it would require a delete and new create. Do not attempt it without explicit instruction.
@@ -163,12 +162,11 @@ Ready to create this poll? Reply "approve" to proceed, or tell me what to change
 
 ### 6. On approval, execute in order
 
-1. Call `mcp__brio-catalog__create_item`:
-   - `catalog`: `crm_prism_surveys`
-   - `id`: the poll id
-   - `data.definition`: `JSON.stringify(definitionObject)` — **must be a string**
-   - `data.intro_html`: the intro HTML string
-   - `data.outro_html`: the outro HTML string
+1. Call `mcp__crm-prism__create_poll` with:
+   - `poll_id`: the poll id
+   - `definition`: the definition object (stringification is handled by the server)
+   - `intro_html`: the intro HTML string
+   - `outro_html`: the outro HTML string
 2. Call `mcp__crm-prism__duplicate_campaign` with `name` equal to the poll id.
 3. Report both results to the user.
 
@@ -179,7 +177,7 @@ Ready to create this poll? Reply "approve" to proceed, or tell me what to change
 Walk these steps in order. Do not skip steps.
 
 ### 1. Fetch the current row
-Call `mcp__brio-catalog__get_item`. Parse the `definition` field from its JSON string. This parsed object is your baseline.
+Call `mcp__crm-prism__get_poll`. The `definition` field is returned as a parsed object — no manual JSON parsing needed.
 
 ### 2. Draft the proposed changes
 Apply the user's edits to the parsed definition object. Increment `version` by 1.
@@ -208,7 +206,7 @@ Follow the diff with the full new-state preview (same format as Workflow A Step 
 
 ### 4. On approval, execute
 
-Call `mcp__brio-catalog__update_item` for partial field changes, or `mcp__brio-catalog__replace_item` to replace the whole row. Pass `definition` as `JSON.stringify(updatedDefinitionObject)`. Do **not** call `duplicate_campaign` for updates.
+Call `mcp__crm-prism__update_poll` with `poll_id` and only the fields that changed. Pass `definition` as an object — stringification is handled by the server. Do **not** call `duplicate_campaign` for updates.
 
 ---
 
@@ -271,7 +269,7 @@ Supported ops: `equals` (scalar under `values`), `in`, `not_in`, `is_set` (no va
 
 Verify all of these before showing any preview:
 
-- [ ] `definition` will be JSON-stringified before the write call
+- [ ] `definition` is passed as an object (not pre-stringified)
 - [ ] `outro_html` contains `<div data-results-slot></div>`
 - [ ] Option values checked against `get_survey_catalog` for canonical matches
 - [ ] All catch-all options have `is_catch_all: true`
