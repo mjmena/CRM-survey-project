@@ -15,12 +15,21 @@ export default defineComponent({
     // Structure: { q1: { "Option A": 10, ... }, q2: ... }
     let stats = (await this.db.get(cacheKey)) || {};
 
-    // 3. Update Stats with new answers
+    // 3. Update Stats with new answers.
+    // Free-text answers are unique per submission and would pollute the cache,
+    // so we skip them here — they still land in Snowflake via the RAW_DATA insert.
+    // Multi-select answers arrive as arrays; iterate so each option is counted.
     if (answers && Array.isArray(answers)) {
-      for (const { question, answer } of answers) {
+      for (const { question, answer, type } of answers) {
+        if (type === 'text') continue;
         if (!stats[question]) stats[question] = {};
-        if (!stats[question][answer]) stats[question][answer] = 0;
-        stats[question][answer]++;
+
+        const values = Array.isArray(answer) ? answer : [answer];
+        for (const v of values) {
+          if (v == null || v === '') continue;
+          if (!stats[question][v]) stats[question][v] = 0;
+          stats[question][v]++;
+        }
       }
 
       // Save back to Data Store

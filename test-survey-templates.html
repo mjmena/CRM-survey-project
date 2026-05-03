@@ -1,0 +1,41 @@
+<!--
+  Example values for the crm_surveys catalog row "crm_test_world_cup_v2".
+
+  Two sibling string fields on the catalog row:
+    intro_html → goes above the questions on page 1
+    outro_html → renders the done view; must contain
+                 <div data-results-slot></div> where results land
+
+  Liquid inside these fields is evaluated by the :rerender flag on the
+  catalog_items tag in poll-iam.v2.liquid. Personalization tokens
+  ({{ ${first_name} }}) and static-name content block references
+  ({{content_blocks.${...}}}) both work; recursive {% catalog_items %}
+  calls do not.
+-->
+
+
+<!-- ─────────────────────  intro_html  ────────────────────── -->
+
+<h3 class="title">{{ ${first_name} | default: 'Hey there' }} — your World Cup take?</h3>
+<p class="sub">A few quick questions while you're here. Helps us tailor what we send your way.</p>
+
+
+<!-- ─────────────────────  outro_html  ────────────────────── -->
+
+<h3 class="title">Thanks!</h3>
+<p class="sub">Here's how your answers compare to other readers.</p>
+
+<div data-results-slot></div>
+
+<div class="card" style="margin-top: 14px;">
+  <h4 style="margin: 0 0 6px; font-size: 14px;">Get our daily sports brief</h4>
+  <p style="margin: 0 0 10px; color: var(--muted); font-size: 12.5px; line-height: 1.45;">
+    World Cup coverage, scores, and storylines — straight to your inbox each morning.
+  </p>
+  <a class="btn primary" href="https://get.mcclatchy.com/newsletters/" target="_blank">Sign up</a>
+  <div style="margin-top: 8px; color: var(--muted); font-size: 11.5px;">Unsubscribe anytime.</div>
+</div>
+
+<div class="nav" style="margin-top: 14px;">
+  <button class="btn" data-action="dismiss">Close</button>
+</div>

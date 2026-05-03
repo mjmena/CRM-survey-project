@@ -1,0 +1,91 @@
+{
+  "poll_id": "crm_test_world_cup_v2",
+  "version": 1,
+  "title": "World Cup 2026 outlook",
+  "intro_subtitle": "A few quick questions to help us tailor your coverage.",
+
+  "pages": [
+    {
+      "page_id": "team",
+      "groups": [
+        { "questions": ["world_cup_pick"] }
+      ]
+    },
+    {
+      "page_id": "engagement",
+      "show_if_answer": {
+        "question": "world_cup_pick",
+        "op": "not_in",
+        "values": ["Prefer not to say"]
+      },
+      "groups": [
+        { "questions": ["watch_methods", "world_cup_confidence"] }
+      ]
+    },
+    {
+      "page_id": "soccer_fan_extras",
+      "show_if_user": {
+        "property": "preference_insights",
+        "op": "array_contains_prefix",
+        "values": ["Sports|Soccer"]
+      },
+      "groups": [
+        { "questions": ["favorite_player_text"] }
+      ]
+    }
+  ],
+
+  "questions": {
+    "world_cup_pick": {
+      "type": "single",
+      "question": "Who's your pick to win the World Cup?",
+      "help_text": "It's okay to be hopeful.",
+      "required": true,
+      "auto_advance": true,
+      "options": [
+        { "value": "Brazil",    "description": "Five-time champions, back to defend?" },
+        { "value": "Argentina", "description": "The defending champions." },
+        { "value": "France",    "description": "Twice in the last three finals." },
+        { "value": "Germany",   "description": "Back from the early-2020s slump?" },
+        { "value": "USA",       "description": "Hosts. Can they break through?" },
+        { "value": "Prefer not to say", "is_catch_all": true }
+      ]
+    },
+
+    "watch_methods": {
+      "type": "multi",
+      "question": "How are you planning to watch?",
+      "help_text": "Pick all that apply.",
+      "required": true,
+      "min_select": 1,
+      "options": [
+        { "value": "At home alone" },
+        { "value": "Watch party with friends" },
+        { "value": "At a bar or restaurant" },
+        { "value": "Streaming on the go" },
+        { "value": "I won't be watching", "is_catch_all": true }
+      ]
+    },
+
+    "world_cup_confidence": {
+      "type": "single",
+      "question": "How confident are you in your pick?",
+      "required": false,
+      "show_results": false,
+      "options": [
+        { "value": "Locked in" },
+        { "value": "Pretty sure" },
+        { "value": "Just a hunch" }
+      ]
+    },
+
+    "favorite_player_text": {
+      "type": "text",
+      "question": "Anyone you're especially excited to watch?",
+      "help_text": "Player names, storylines — whatever.",
+      "max_length": 300,
+      "required": false,
+      "placeholder": "e.g. Mbappé in his prime"
+    }
+  }
+}

@@ -1,0 +1,475 @@
+<!-- Survey renderer. Schema and design notes live in poll-iam-v2.md alongside this file. -->
+
+{% assign variant = event_properties.${ampl_flag_key} | default: 'crm_default_survey' %}
+{% catalog_items survey_test {{variant}} :rerender %}
+{% if items[0] == blank %}
+{% abort_message('Survey catalog lookup returned no items for this variant') %}
+{% endif %}
+{% assign poll = items[0] %}
+
+<style>
+  :root {
+    --bg1: #fff;
+    --bg2: #f6f8fb;
+    --card: #fff;
+    --border: rgba(15, 23, 42, 0.14);
+    --text: #0f172a;
+    --muted: rgba(15, 23, 42, 0.68);
+    --a1: #167ba5;
+    --r: 16px;
+    --shadow: 0 18px 60px rgba(2, 6, 23, 0.16);
+  }
+  body {
+    margin: 0;
+    /* System fonts — no font fetch on first paint. */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    height: 100dvh;
+    box-sizing: border-box;
+  }
+  .screen { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 14px; box-sizing: border-box; }
+  .modal { width: min(480px, 100%); background: linear-gradient(180deg, var(--bg1), var(--bg2)); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; position: absolute; top: 10%; left: 50%; transform: translateX(-50%); }
+  .head { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); border: 1px solid var(--border); background: rgba(22, 123, 165, 0.06); padding: 6px 10px; border-radius: 99px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--a1); box-shadow: 0 0 0 3px rgba(22, 123, 165, 0.16); }
+  .close { width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .content { padding: 14px; }
+  .title { margin: 0 0 6px; font-size: 18px; letter-spacing: 0.2px; }
+  .sub { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+  .progress { display: flex; gap: 4px; margin-top: 12px; }
+  .bar { flex: 1; height: 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--a1); transition: width 0.4s ease; }
+
+  .card { margin-top: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 1px 0 rgba(2, 6, 23, 0.04); }
+  .q { margin: 0 0 6px; font-size: 15px; line-height: 1.35; font-weight: 600; }
+  .help { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
+
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.8); cursor: pointer; transition: 0.2s; margin-top: 8px; }
+  .opt:hover { background: rgba(22, 123, 165, 0.05); border-color: rgba(22, 123, 165, 0.28); }
+  .opt input { margin-top: 2px; }
+  .opt strong { display: block; font-weight: 650; font-size: 13.5px; }
+  .opt span { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+  .opt.selected { background: rgba(22, 123, 165, 0.08); border-color: var(--a1); }
+
+  .text-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
+  .text-input:focus { outline: none; border-color: var(--a1); }
+  .char-count { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
+
+  .nav { display: flex; gap: 10px; margin-top: 14px; }
+  .btn { border-radius: 12px; padding: 12px; font: 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
+  .btn:hover { background: rgba(15, 23, 42, 0.06); }
+  .btn.primary { background: var(--a1); color: #fff; border-color: rgba(15, 23, 42, 0.1); }
+  .btn.primary:hover { background: #126384; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.86); margin-top: 8px; }
+  .item b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .summary-bar { height: 6px; background: rgba(15, 23, 42, 0.05); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .summary-bar-fill { height: 100%; background: var(--a1); border-radius: 99px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; }
+
+  @media (max-width: 520px) {
+    .screen { padding: 14px 10px; align-items: flex-end; }
+    .modal { width: 100%; border-radius: 18px; max-height: 92vh; }
+  }
+</style>
+
+<body>
+  <div class="screen" id="screen">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Survey">
+      <div class="head">
+        <div class="badge"><span class="dot"></span><span>Poll</span></div>
+        <button class="close" data-action="dismiss" aria-label="Close">&times;</button>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+
+  <!-- Catalog-driven payloads, stashed in inert <script type="..."> blocks so Liquid
+       output sits in the DOM as text without affecting layout or JS parsing
+       until we lift it. The :rerender flag on the catalog_items tag above
+       evaluates Liquid inside these fields server-side. -->
+  <script type="application/json" id="tmpl-definition">{{ poll.definition }}</script>
+  <script type="text/html" id="tmpl-intro">{{ poll.intro_html }}</script>
+  <script type="text/html" id="tmpl-outro">{{ poll.outro_html }}</script>
+</body>
+
+<script>
+(function () {
+  const VARIANT = '{{ variant }}';
+  window.__VARIANT__ = VARIANT; // for debugging only
+
+  const SURVEY = (function () {
+    const tmpl = document.getElementById('tmpl-definition');
+    const raw = (tmpl && tmpl.textContent || '').trim();
+
+    if (!raw) {
+      console.error('[poll-iam] Survey definition is empty. Catalog lookup likely missed — check the variant value and that a row with id="' + (VARIANT || 'unknown') + '" exists.');
+      return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+    }
+
+    try {
+      let parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+      return parsed;
+    } catch (e) {
+      console.error('[poll-iam] JSON.parse failed on survey definition.');
+      console.error('  error:        ', e.message);
+      console.error('  raw length:   ', raw.length);
+      console.error('  first 300:    ', JSON.stringify(raw.slice(0, 300)));
+      console.error('  last 100:     ', JSON.stringify(raw.slice(-100)));
+      console.error('  charCodeAt(0):', raw.charCodeAt(0));
+      return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+    }
+  })();
+
+  const DEVICE_ID = '{{targeted_device.${id}}}';
+  const POLL_ID = '{{ poll.id }}';
+  const SUBMIT_URL = 'https://eo9ujqadjkl294i.m.pipedream.net';
+
+  const state = {
+    step: 'page',
+    pageIndex: 0,
+    answers: {},
+    results: [],
+    autoAdvanceTimer: null,
+  };
+
+  function evalUserPredicate(p) { return true; }
+
+  function evalAnswerPredicate(p) {
+    if (!p) return true;
+    const ans = state.answers[p.question];
+    switch (p.op) {
+      case 'equals':         return ans === p.values;
+      case 'in':             return Array.isArray(p.values) && p.values.includes(ans);
+      case 'not_in':         return Array.isArray(p.values) && !p.values.includes(ans);
+      case 'is_set':         return ans !== undefined && ans !== null && ans !== '';
+      case 'array_contains': return Array.isArray(ans) && p.values.some(v => ans.includes(v));
+      default: return true;
+    }
+  }
+
+  function isPageVisible(page) {
+    if (page.show_if_user && !evalUserPredicate(page.show_if_user)) return false;
+    if (page.show_if_answer && !evalAnswerPredicate(page.show_if_answer)) return false;
+    return true;
+  }
+
+  function visibleQuestions() {
+    const page = SURVEY.pages[state.pageIndex];
+    if (!page || !page.groups) return [];
+    return page.groups.flatMap(g => g.questions).filter(qk => {
+      const q = SURVEY.questions[qk];
+      if (!q) return false;
+      if (q.show_if_user && !evalUserPredicate(q.show_if_user)) return false;
+      if (q.show_if_answer && !evalAnswerPredicate(q.show_if_answer)) return false;
+      return true;
+    });
+  }
+
+  function canAdvance() {
+    return visibleQuestions().every(qk => {
+      const q = SURVEY.questions[qk];
+      if (!q.required) return true;
+      const ans = state.answers[qk];
+      if (q.type === 'multi') return Array.isArray(ans) && ans.length >= (q.min_select || 1);
+      return ans !== undefined && ans !== null && ans !== '';
+    });
+  }
+
+  function isLastVisiblePage() {
+    for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
+      if (isPageVisible(SURVEY.pages[i])) return false;
+    }
+    return true;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function renderQuestion(qk) {
+    const q = SURVEY.questions[qk];
+    const ans = state.answers[qk];
+    let body = '';
+
+    if (q.type === 'single') {
+      body = q.options.map(opt => `
+        <label class="opt${ans === opt.value ? ' selected' : ''}">
+          <input type="radio" name="${esc(qk)}" value="${esc(opt.value)}"
+                 data-q="${esc(qk)}" data-action="single"
+                 ${ans === opt.value ? 'checked' : ''}>
+          <div>
+            <strong>${esc(opt.label || opt.value)}</strong>
+            ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+          </div>
+        </label>
+      `).join('');
+
+    } else if (q.type === 'multi') {
+      const selected = new Set(ans || []);
+      body = q.options.map(opt => `
+        <label class="opt${selected.has(opt.value) ? ' selected' : ''}">
+          <input type="checkbox" value="${esc(opt.value)}"
+                 data-q="${esc(qk)}" data-action="multi"
+                 ${selected.has(opt.value) ? 'checked' : ''}>
+          <div>
+            <strong>${esc(opt.label || opt.value)}</strong>
+            ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+          </div>
+        </label>
+      `).join('');
+
+    } else if (q.type === 'text') {
+      const max = q.max_length || 500;
+      const len = (ans || '').length;
+      body = `
+        <textarea class="text-input" data-q="${esc(qk)}" data-action="text"
+                  maxlength="${max}"
+                  placeholder="${esc(q.placeholder || '')}">${esc(ans || '')}</textarea>
+        <div class="char-count">
+          <span data-char-count="${esc(qk)}">${len}</span> / ${max}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="card">
+        <p class="q">${esc(q.question)}</p>
+        ${q.help_text ? `<p class="help">${esc(q.help_text)}</p>` : ''}
+        ${body}
+      </div>
+    `;
+  }
+
+  function templateHtml(id) {
+    const el = document.getElementById(id);
+    return el ? el.textContent : '';
+  }
+
+  const DEFAULT_INTRO = `
+    <h3 class="title">${esc(SURVEY.title || '')}</h3>
+    <p class="sub">Your responses help us understand what readers are thinking.</p>
+  `;
+  const DEFAULT_OUTRO = `
+    <h3 class="title">Thanks!</h3>
+    <p class="sub">Here's how your answers compare to other readers.</p>
+    <div data-results-slot></div>
+    <div class="nav" style="margin-top: 14px;">
+      <button class="btn" data-action="dismiss">Close</button>
+    </div>
+  `;
+
+  function renderPageView() {
+    const page = SURVEY.pages[state.pageIndex] || {};
+
+    const header = state.pageIndex === 0
+      ? (templateHtml('tmpl-intro') || DEFAULT_INTRO)
+      : (page.title ? `<h3 class="title">${esc(page.title)}</h3>` : '');
+
+    const progress = SURVEY.pages.length > 1 ? `
+      <div class="progress">
+        ${SURVEY.pages.map((_, i) => `
+          <div class="bar"><i style="width: ${i < state.pageIndex ? 100 : i === state.pageIndex ? 50 : 0}%"></i></div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    const questions = visibleQuestions().map(renderQuestion).join('');
+    const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
+    const nav = `
+      <div class="nav">
+        ${state.pageIndex > 0 ? '<button class="btn" data-action="prev">Back</button>' : ''}
+        <button class="btn primary" data-action="next" ${canAdvance() ? '' : 'disabled'}>
+          ${nextLabel}
+        </button>
+      </div>
+    `;
+
+    return `
+      ${header}
+      ${progress}
+      ${questions}
+      ${nav}
+    `;
+  }
+
+  function renderDoneView() {
+    const items = state.results.map(r => `
+      <div class="item">
+        <b>${esc(r.questionText)}</b>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12.5px; font-weight:600;">${esc(r.text)}</span>
+          ${r.percentage != null ? `<span style="font-weight:bold; color:var(--a1)">${r.percentage}%</span>` : ''}
+        </div>
+        ${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width: 0%"></div></div>` : ''}
+      </div>
+    `).join('');
+
+    const html = templateHtml('tmpl-outro') || DEFAULT_OUTRO;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const slot = wrapper.querySelector('[data-results-slot]');
+    if (slot) slot.innerHTML = items;
+    else wrapper.insertAdjacentHTML('beforeend', items);
+    return wrapper.innerHTML;
+  }
+
+  function render() {
+    const content = document.getElementById('content');
+    content.innerHTML = state.step === 'page' ? renderPageView() : renderDoneView();
+  }
+
+  function setSingleAnswer(qk, value) {
+    state.answers[qk] = value;
+    render();
+    const q = SURVEY.questions[qk];
+    if (q.auto_advance && visibleQuestions().length === 1 && canAdvance()) {
+      clearTimeout(state.autoAdvanceTimer);
+      state.autoAdvanceTimer = setTimeout(nextPage, 350);
+    }
+  }
+
+  function toggleMulti(qk, value) {
+    const arr = [...(state.answers[qk] || [])];
+    const i = arr.indexOf(value);
+    if (i === -1) arr.push(value); else arr.splice(i, 1);
+    state.answers[qk] = arr;
+    render();
+  }
+
+  function setTextAnswer(qk, value) {
+    state.answers[qk] = value;
+    const counter = document.querySelector(`[data-char-count="${CSS.escape(qk)}"]`);
+    if (counter) counter.textContent = value.length;
+    const nextBtn = document.querySelector('[data-action="next"]');
+    if (nextBtn) nextBtn.disabled = !canAdvance();
+  }
+
+  function prevPage() {
+    for (let i = state.pageIndex - 1; i >= 0; i--) {
+      if (isPageVisible(SURVEY.pages[i])) {
+        state.pageIndex = i;
+        render();
+        return;
+      }
+    }
+  }
+
+  function nextPage() {
+    for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
+      if (isPageVisible(SURVEY.pages[i])) {
+        state.pageIndex = i;
+        render();
+        return;
+      }
+    }
+    submit();
+  }
+
+  async function submit() {
+    if (window.brazeBridge && window.brazeBridge.addToUserProperty) {
+      window.brazeBridge.addToUserProperty('crm_surveys_completed', POLL_ID);
+    }
+
+    const payload = {
+      poll_id: POLL_ID,
+      device_id: DEVICE_ID,
+      submitted_at: new Date().toISOString(),
+      answers: Object.entries(state.answers)
+        .filter(([qk]) => SURVEY.questions[qk])
+        .map(([question, answer]) => ({
+          question,
+          answer,
+          type: SURVEY.questions[question].type
+        }))
+    };
+
+    let stats = {};
+    try {
+      const resp = await fetch(SUBMIT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      stats = (data && data.$response && data.$response.body) || data || {};
+    } catch (e) {}
+
+    state.results = buildResults(stats);
+    state.step = 'done';
+    render();
+
+    setTimeout(() => {
+      state.results.forEach(r => {
+        if (r.percentage == null) return;
+        const bar = document.querySelector(`[data-bar="${CSS.escape(r.qk + '|' + r.value)}"]`);
+        if (bar) bar.style.width = r.percentage + '%';
+      });
+    }, 50);
+  }
+
+  function buildResults(stats) {
+    return Object.entries(state.answers).flatMap(([qk, ans]) => {
+      const q = SURVEY.questions[qk];
+      if (!q) return [];
+      const qStats = (stats && stats[qk]) || [];
+
+      if (q.type === 'text') {
+        return [{ qk, value: ans, questionText: q.question, text: ans, percentage: null }];
+      }
+
+      const values = Array.isArray(ans) ? ans : [ans];
+      return values.map(v => {
+        const labelOpt = (q.options || []).find(o => o.value === v);
+        const match = qStats.find(s => s.label === v);
+        return {
+          qk, value: v,
+          questionText: q.question,
+          text: (labelOpt && labelOpt.label) || v,
+          percentage: q.show_results === false ? null : (match ? match.percentage : 0)
+        };
+      });
+    });
+  }
+
+  function dismiss() {
+    const b = window.brazeBridge || window.appboyBridge;
+    if (b && b.closeMessage) b.closeMessage();
+    else location.href = 'appboy://close';
+  }
+
+  document.body.addEventListener('click', e => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    if (action === 'prev') prevPage();
+    else if (action === 'next') nextPage();
+    else if (action === 'dismiss') dismiss();
+  });
+
+  document.body.addEventListener('change', e => {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.action) return;
+    if (el.dataset.action === 'single') setSingleAnswer(el.dataset.q, el.value);
+    else if (el.dataset.action === 'multi') toggleMulti(el.dataset.q, el.value);
+  });
+
+  document.body.addEventListener('input', e => {
+    const el = e.target;
+    if (el.dataset && el.dataset.action === 'text') setTextAnswer(el.dataset.q, el.value);
+  });
+
+  document.getElementById('screen').addEventListener('click', e => {
+    if (e.target.id === 'screen' && state.step === 'done') dismiss();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && state.step === 'done') dismiss();
+  });
+
+  render();
+})();
+</script>
