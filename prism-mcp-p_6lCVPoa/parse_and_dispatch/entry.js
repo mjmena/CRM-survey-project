@@ -134,6 +134,16 @@ export default defineComponent({
 
     const { method, id: requestId, params } = body;
 
+    // ── ping — respond before auth to avoid per-second workflow invocations ───
+    if (method === "ping") {
+      await $.respond({
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: requestId, result: {} }),
+      });
+      $.flow.exit("handled: ping");
+    }
+
     // ── initialize ────────────────────────────────────────────────────────────
     if (method === "initialize") {
       await $.respond({
