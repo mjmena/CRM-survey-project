@@ -1,0 +1,30 @@
+schema: workflow/2022.04
+name: Survey Response
+settings:
+  error_notification: true
+triggers:
+- id: hi_5nHv7Xx
+steps:
+- namespace: code
+  runtime: nodejs20.x
+  uses: "./code/entry.js"
+  props:
+    db:
+      storeId: ds_aQuyrj6
+- namespace: execute_sql_query
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
+        SELECT PARSE_JSON({{JSON.stringify(steps.trigger.event.body)}});
+      query: |-
+        INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
+        SELECT PARSE_JSON(?);
+      params:
+      - "{{JSON.stringify(steps.trigger.event.body)}}"
+      usePreparedStatements: true
+
