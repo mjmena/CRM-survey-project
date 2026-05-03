@@ -8,7 +8,7 @@ The renderer is the source of truth — when this doc and the renderer disagree,
 
 ## TL;DR for an authoring agent
 
-A survey lives as a single row in the Braze `survey_test` catalog. The row has three fields you author:
+A survey lives as a single row in the Braze `crm_prism_surveys` catalog. The row has three fields you author:
 
 | Field | Type | Purpose |
 |---|---|---|
@@ -85,7 +85,8 @@ Three types: `single`, `multi`, `text`. All share these fields:
   "type": "single",
   "question": "...",
   "required": true,
-  "auto_advance": true,             // optional. Auto-advances ~350ms after pick,
+  "auto_advance": false,            // optional, default true. Set false to disable.
+                                    // Auto-advances ~350ms after pick,
                                     // ONLY when this is the page's only visible question.
   "show_results": true,             // optional, default true. See "show_results" below.
   "options": [
@@ -255,7 +256,7 @@ Things the workflow does that affect authoring:
 - **`is_catch_all: true`** on every "Other" / "Prefer not to say" / "I won't be watching" type option. Critical for clean downstream taxonomy.
 - **`show_results: false`** on questions that would feel intrusive to surface back (political affiliation, income, anything sensitive). Default-true otherwise.
 - **`required: true`** on questions that gate the entire poll's value. Avoid making everything required — completion rate matters.
-- **`auto_advance: true`** only on single-question pages where the user's pick obviously means "I'm done with this page". Don't combine with `required: false` (they conflict in spirit).
+- **`auto_advance: false`** to disable on single-question pages where auto-advancing would feel abrupt (e.g. sensitive questions). Default is true — no need to set it explicitly to enable it.
 
 ---
 

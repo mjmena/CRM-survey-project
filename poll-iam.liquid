@@ -1,7 +1,7 @@
 <!-- Survey renderer. Schema and design notes live in poll-iam-v2.md alongside this file. -->
 
 {% assign variant = event_properties.${ampl_flag_key} | default: 'crm_default_survey' %}
-{% catalog_items survey_test {{variant}} :rerender %}
+{% catalog_items crm_prism_surveys {{variant}} :rerender %}
 {% if items[0] == blank %}
 {% abort_message('Survey catalog lookup returned no items for this variant') %}
 {% endif %}
@@ -329,7 +329,7 @@
     state.answers[qk] = value;
     render();
     const q = SURVEY.questions[qk];
-    if (q.auto_advance && visibleQuestions().length === 1 && canAdvance()) {
+    if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) {
       clearTimeout(state.autoAdvanceTimer);
       state.autoAdvanceTimer = setTimeout(nextPage, 350);
     }
