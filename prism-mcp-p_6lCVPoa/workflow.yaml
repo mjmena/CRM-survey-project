@@ -10,7 +10,7 @@ triggers:
 steps:
 - namespace: parse_and_dispatch
   runtime: nodejs20.x
-  uses: "./parse_and_dispatch/entry.mjs"
+  uses: "./parse_and_dispatch/entry.js"
   props:
     braze:
       authProvisionId: apn_6LhOGA9
@@ -21,14 +21,12 @@ steps:
     template_campaign_id:
       type: string
       label: Template Campaign ID
-      description: "Braze campaign UUID to use as the duplication source"
-
+      description: Braze campaign UUID to use as the duplication source
 - namespace: build_sql
   runtime: nodejs20.x
   uses: "./build_sql/entry.mjs"
   props:
     dispatch: "{{steps.parse_and_dispatch.$return_value}}"
-
 - namespace: snowflake_query
   runtime: nodejs20.x
   uses: snowflake-execute-sql-query@0.2.3
@@ -40,10 +38,10 @@ steps:
       query: "{{steps.build_sql.$return_value.sql}}"
       params: "{{steps.build_sql.$return_value.params}}"
       usePreparedStatements: true
-
 - namespace: format_response
   runtime: nodejs20.x
   uses: "./format_response/entry.mjs"
   props:
     dispatch: "{{steps.parse_and_dispatch.$return_value}}"
     rows: "{{steps.snowflake_query.$return_value}}"
+
