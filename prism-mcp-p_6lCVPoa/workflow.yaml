@@ -10,7 +10,7 @@ triggers:
 steps:
 - namespace: parse_and_dispatch
   runtime: nodejs20.x
-  uses: "./parse_and_dispatch/entry.mjs"
+  uses: "./parse_and_dispatch/entry.js"
   props:
     braze:
       authProvisionId: apn_6LhOGA9
