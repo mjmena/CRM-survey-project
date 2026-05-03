@@ -1,13 +1,14 @@
 <!--
-  Example values for the crm_surveys catalog row "crm_test_world_cup_v2".
+  Example values for a crm_prism_surveys catalog row.
 
-  Two sibling string fields on the catalog row:
+  Three fields on the catalog row:
     intro_html → goes above the questions on page 1
     outro_html → renders the done view; must contain
                  <div data-results-slot></div> where results land
+    definition → JSON-stringified survey definition object
 
-  Liquid inside these fields is evaluated by the :rerender flag on the
-  catalog_items tag in poll-iam.v2.liquid. Personalization tokens
+  Liquid inside intro_html and outro_html is evaluated by the :rerender
+  flag on the catalog_items tag in poll-iam.liquid. Personalization tokens
   ({{ ${first_name} }}) and static-name content block references
   ({{content_blocks.${...}}}) both work; recursive {% catalog_items %}
   calls do not.

@@ -52,7 +52,7 @@ Ask the user for: topic, question text(s), question type(s) (`single` / `multi` 
 ### 2. Check existing conventions
 Call `mcp__crm-prism__get_survey_catalog` and scan for option values relevant to this topic. Note exact strings to reuse.
 
-### 3. Draft the v2 definition object
+### 3. Draft the poll definition
 
 ```json
 {

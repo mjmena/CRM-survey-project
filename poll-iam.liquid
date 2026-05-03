@@ -1,4 +1,4 @@
-<!-- Survey renderer. Schema and design notes live in poll-iam-v2.md alongside this file. -->
+<!-- Survey renderer. Schema and design notes live in poll-iam.md alongside this file. -->
 
 {% assign variant = event_properties.${ampl_flag_key} | default: 'crm_default_survey' %}
 {% catalog_items crm_prism_surveys {{variant}} :rerender %}

@@ -1,4 +1,4 @@
-# Survey Definition (v2) — Authoring Reference
+# Survey Definition — Authoring Reference
 
 Authoritative spec for the survey blob consumed by `poll-iam.liquid` and submitted to the `survey-response-p_LQCoAMR` workflow. Written for agents that author new surveys; humans can read it too.
 
@@ -226,7 +226,7 @@ For reference — the renderer builds this on submit. Authors don't write it, bu
 
 ```jsonc
 {
-  "poll_id": "crm_test_world_cup_v2",
+  "poll_id": "prism_world_cup_2026_survey",
   "device_id": "<braze targeted_device id>",
   "external_id": "<braze user_id>",       // empty for anonymous users
   "market_name": "<paper code>",          // from event_properties.market_name
