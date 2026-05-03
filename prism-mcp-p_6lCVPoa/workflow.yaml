@@ -14,14 +14,6 @@ steps:
   props:
     braze:
       authProvisionId: apn_6LhOGA9
-    mcp_shared_secret:
-      type: string
-      secret: true
-      label: MCP Shared Secret
-    template_campaign_id:
-      type: string
-      label: Template Campaign ID
-      description: "Braze campaign UUID to use as the duplication source"
 
 - namespace: build_sql
   runtime: nodejs20.x
