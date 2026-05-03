@@ -2,6 +2,48 @@ schema: workflow/2022.04
 name: PRISM MCP
 settings:
   error_notification: true
+  lambda_memory: 1024
+  lambda_timeout: 60
+  network: net_5Lnie3
 triggers:
 - id: hi_a1H2jpx
+steps:
+- namespace: parse_and_dispatch
+  runtime: nodejs20.x
+  uses: "./parse_and_dispatch/entry.mjs"
+  props:
+    braze:
+      authProvisionId: apn_6LhOGA9
+    mcp_shared_secret:
+      type: string
+      secret: true
+      label: MCP Shared Secret
+    template_campaign_id:
+      type: string
+      label: Template Campaign ID
+      description: "Braze campaign UUID to use as the duplication source"
 
+- namespace: build_sql
+  runtime: nodejs20.x
+  uses: "./build_sql/entry.mjs"
+  props:
+    dispatch: "{{steps.parse_and_dispatch.$return_value}}"
+
+- namespace: snowflake_query
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: "{{steps.build_sql.$return_value.sql}}"
+      query: "{{steps.build_sql.$return_value.sql}}"
+      params: "{{steps.build_sql.$return_value.params}}"
+      usePreparedStatements: true
+
+- namespace: format_response
+  runtime: nodejs20.x
+  uses: "./format_response/entry.mjs"
+  props:
+    dispatch: "{{steps.parse_and_dispatch.$return_value}}"
+    rows: "{{steps.snowflake_query.$return_value}}"
