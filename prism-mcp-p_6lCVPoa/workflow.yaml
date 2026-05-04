@@ -11,8 +11,10 @@ steps:
   runtime: nodejs20.x
   uses: "./parse_and_dispatch/entry.js"
   props:
-    braze:
+    braze_campaign:
       authProvisionId: apn_0WhgpWJ
+    braze_catalog:
+      authProvisionId: ~
     template_campaign_id: 23b83210-a4f8-4f30-ac54-75085eebf578
 - namespace: build_sql
   runtime: nodejs20.x

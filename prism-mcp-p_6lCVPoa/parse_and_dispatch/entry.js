@@ -136,13 +136,15 @@ const TOOL_SCHEMAS = [
 
 const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers"]);
 const BRAZE_TOOLS = new Set(["get_poll", "create_poll", "update_poll", "duplicate_campaign"]);
+const CATALOG_TOOLS = new Set(["get_poll", "create_poll", "update_poll"]);
 
 export default defineComponent({
   name: "Parse and Dispatch",
   description:
     "Authenticates MCP requests, handles all non-Snowflake paths inline, and passes Snowflake tool calls to downstream steps.",
   props: {
-    braze: { type: "app", app: "braze" },
+    braze_campaign: { type: "app", app: "braze", label: "Braze (Campaign)" },
+    braze_catalog: { type: "app", app: "braze", label: "Braze (Catalog)" },
     template_campaign_id: { type: "string", label: "Template Campaign ID" },
   },
 
@@ -232,10 +234,11 @@ export default defineComponent({
 
     // ── Braze tools — handle inline, no Snowflake needed ─────────────────────
     if (BRAZE_TOOLS.has(tool)) {
+      const auth = CATALOG_TOOLS.has(tool) ? this.braze_catalog.$auth : this.braze_campaign.$auth;
       const result = await handleBrazeTool(
         tool,
         args,
-        this.braze.$auth,
+        auth,
         this.template_campaign_id
       );
       await $.respond({
