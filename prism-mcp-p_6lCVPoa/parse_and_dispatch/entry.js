@@ -135,8 +135,8 @@ const TOOL_SCHEMAS = [
 ];
 
 const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers"]);
-const BRAZE_TOOLS = new Set(["get_poll", "create_poll", "update_poll", "duplicate_campaign"]);
 const CATALOG_TOOLS = new Set(["get_poll", "create_poll", "update_poll"]);
+const CAMPAIGN_TOOLS = new Set(["duplicate_campaign"]);
 
 export default defineComponent({
   name: "Parse and Dispatch",
@@ -233,7 +233,7 @@ export default defineComponent({
     }
 
     // ── Braze tools — handle inline, no Snowflake needed ─────────────────────
-    if (BRAZE_TOOLS.has(tool)) {
+    if (CATALOG_TOOLS.has(tool) || CAMPAIGN_TOOLS.has(tool)) {
       const auth = CATALOG_TOOLS.has(tool) ? this.braze_catalog.$auth : this.braze_campaign.$auth;
       const result = await handleBrazeTool(
         tool,
