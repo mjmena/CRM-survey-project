@@ -15,7 +15,7 @@ steps:
       authProvisionId: apn_1Khpe1W
     braze_catalog:
       authProvisionId: apn_6LhOGA9
-    template_campaign_id: 23b83210-a4f8-4f30-ac54-75085eebf578
+    template_campaign_id: e9d9e88e-6152-4c72-99dc-4f2cee4f328c
 - namespace: build_sql
   runtime: nodejs20.x
   uses: "./build_sql/entry.mjs"
