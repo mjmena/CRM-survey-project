@@ -12,7 +12,7 @@ steps:
   uses: "./parse_and_dispatch/entry.js"
   props:
     braze_campaign:
-      authProvisionId: apn_0WhgpWJ
+      authProvisionId: apn_1Khpe1W
     braze_catalog:
       authProvisionId: apn_6LhOGA9
     template_campaign_id: 23b83210-a4f8-4f30-ac54-75085eebf578
