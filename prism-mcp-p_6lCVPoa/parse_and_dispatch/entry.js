@@ -136,7 +136,7 @@ const TOOL_SCHEMAS = [
 
 const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers"]);
 const BRAZE_TOOLS = new Set(["get_poll", "create_poll", "update_poll", "duplicate_campaign"]);
-const CATALOG_TOOLS = new Set(["get_poll", "create_poll", "update_poll"]);
+const CATALOG_TOOLS = new Set(["create_poll", "update_poll"]);
 
 export default defineComponent({
   name: "Parse and Dispatch",
