@@ -143,30 +143,12 @@ export default defineComponent({
     "Authenticates MCP requests, handles all non-Snowflake paths inline, and passes Snowflake tool calls to downstream steps.",
   props: {
     braze: { type: "app", app: "braze" },
-    mcp_shared_secret: { type: "string", secret: true, label: "MCP Shared Secret" },
     template_campaign_id: { type: "string", label: "Template Campaign ID" },
   },
 
   async run({ steps, $ }) {
     const event = steps.trigger.event;
     const body = typeof event.body === "string" ? JSON.parse(event.body) : (event.body ?? {});
-
-    // ── Auth ──────────────────────────────────────────────────────────────────
-    const authHeader =
-      event.headers?.authorization ?? event.headers?.Authorization ?? "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token || token !== this.mcp_shared_secret) {
-      await $.respond({
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: body.id ?? null,
-          error: { code: -32600, message: "Unauthorized" },
-        }),
-      });
-      $.flow.exit("Unauthorized");
-    }
 
     const { method, id: requestId, params } = body;
 
@@ -189,7 +171,7 @@ export default defineComponent({
           jsonrpc: "2.0",
           id: requestId,
           result: {
-            protocolVersion: "2024-11-05",
+            protocolVersion: "2025-03-26",
             capabilities: { tools: {} },
             serverInfo: { name: "prism-mcp", version: "1.0.0" },
           },
