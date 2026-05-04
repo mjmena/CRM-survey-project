@@ -16,16 +16,27 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        WITH tally AS (
+        WITH raw AS (
             SELECT
-                RAW_DATA:poll_id::STRING   AS poll_id,
-                a.value:question::STRING   AS question_key,
-                a.value:answer::STRING     AS answer_value,
-                COUNT(*)                   AS response_count
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
             WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
-            GROUP BY RAW_DATA:poll_id::STRING, a.value:question::STRING, a.value:answer::STRING
+        ),
+        tally AS (
+            SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw
+            WHERE answer_typeof = 'VARCHAR'
+            GROUP BY 1, 2, 3
+            UNION ALL
+            SELECT raw.poll_id, raw.question_key, ia.value::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw,
+                 LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+            GROUP BY 1, 2, 3
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
@@ -34,33 +45,43 @@ steps:
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
-            t.poll_id                                     AS POLL_ID,
-            t.total_responses                             AS TOTAL_RESPONSES,
-            COALESCE(q.QUESTION_TEXT, tally.question_key) AS QUESTION,
-            COALESCE(c.OPTION_LABEL, tally.answer_value)  AS ANSWER,
-            tally.response_count                          AS RESPONSE_COUNT
+            t.poll_id                                      AS POLL_ID,
+            t.total_responses                              AS TOTAL_RESPONSES,
+            COALESCE(q.QUESTION_TEXT, tally.question_key)  AS QUESTION,
+            COALESCE(o.OPTION_LABEL, tally.answer_value)   AS ANSWER,
+            tally.response_count                           AS RESPONSE_COUNT
         FROM tally
         JOIN totals t ON tally.poll_id = t.poll_id
-        LEFT JOIN (
-            SELECT DISTINCT POLL_ID, QUESTION_KEY, QUESTION_TEXT
-            FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        ) q ON tally.poll_id = q.POLL_ID AND tally.question_key = q.QUESTION_KEY
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
-            ON tally.poll_id = c.POLL_ID
-            AND tally.question_key = c.QUESTION_KEY
-            AND tally.answer_value = c.OPTION_VALUE
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = tally.poll_id
+            AND o.QUESTION_KEY = tally.question_key
+            AND o.OPTION_VALUE = tally.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
         ORDER BY t.poll_id, tally.question_key, tally.response_count DESC
       query: |-
-        WITH tally AS (
+        WITH raw AS (
             SELECT
-                RAW_DATA:poll_id::STRING   AS poll_id,
-                a.value:question::STRING   AS question_key,
-                a.value:answer::STRING     AS answer_value,
-                COUNT(*)                   AS response_count
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
             WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
-            GROUP BY RAW_DATA:poll_id::STRING, a.value:question::STRING, a.value:answer::STRING
+        ),
+        tally AS (
+            SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw
+            WHERE answer_typeof = 'VARCHAR'
+            GROUP BY 1, 2, 3
+            UNION ALL
+            SELECT raw.poll_id, raw.question_key, ia.value::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw,
+                 LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+            GROUP BY 1, 2, 3
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
@@ -69,21 +90,20 @@ steps:
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
-            t.poll_id                                     AS POLL_ID,
-            t.total_responses                             AS TOTAL_RESPONSES,
-            COALESCE(q.QUESTION_TEXT, tally.question_key) AS QUESTION,
-            COALESCE(c.OPTION_LABEL, tally.answer_value)  AS ANSWER,
-            tally.response_count                          AS RESPONSE_COUNT
+            t.poll_id                                      AS POLL_ID,
+            t.total_responses                              AS TOTAL_RESPONSES,
+            COALESCE(q.QUESTION_TEXT, tally.question_key)  AS QUESTION,
+            COALESCE(o.OPTION_LABEL, tally.answer_value)   AS ANSWER,
+            tally.response_count                           AS RESPONSE_COUNT
         FROM tally
         JOIN totals t ON tally.poll_id = t.poll_id
-        LEFT JOIN (
-            SELECT DISTINCT POLL_ID, QUESTION_KEY, QUESTION_TEXT
-            FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG
-        ) q ON tally.poll_id = q.POLL_ID AND tally.question_key = q.QUESTION_KEY
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG c
-            ON tally.poll_id = c.POLL_ID
-            AND tally.question_key = c.QUESTION_KEY
-            AND tally.answer_value = c.OPTION_VALUE
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = tally.poll_id
+            AND o.QUESTION_KEY = tally.question_key
+            AND o.OPTION_VALUE = tally.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
         ORDER BY t.poll_id, tally.question_key, tally.response_count DESC
       params: []
 - namespace: build_tally_grids

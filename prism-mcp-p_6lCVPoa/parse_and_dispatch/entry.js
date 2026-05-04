@@ -117,9 +117,24 @@ const TOOL_SCHEMAS = [
       required: ["name"],
     },
   },
+  {
+    name: "get_text_answers",
+    description:
+      "Fetch unique normalized free-text responses stored in DIM_SURVEY_OPTIONS with OPTION_SOURCE='response'. Optionally filter to a specific poll or to unclassified rows only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        poll_id: { type: "string", description: "Optional. Filter to a specific poll." },
+        unclassified_only: {
+          type: "boolean",
+          description: "Optional. If true, only return text answers not yet classified in DIM_SURVEY_TAXONOMY.",
+        },
+      },
+    },
+  },
 ];
 
-const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses"]);
+const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers"]);
 const BRAZE_TOOLS = new Set(["get_poll", "create_poll", "update_poll", "duplicate_campaign"]);
 
 export default defineComponent({
