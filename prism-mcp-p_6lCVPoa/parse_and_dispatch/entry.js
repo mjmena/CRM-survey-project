@@ -132,9 +132,63 @@ const TOOL_SCHEMAS = [
       },
     },
   },
+  {
+    name: "get_answer_patterns",
+    description:
+      "Fetch co-occurrence and page-order statistics for a poll — which predefined option pairs appear together most often in the same submission, and in which sequence. Use this to identify candidates for conditional taxonomy rules.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        poll_id: { type: "string", description: "The poll_id to analyze." },
+      },
+      required: ["poll_id"],
+    },
+  },
+  {
+    name: "create_taxonomy_rule",
+    description:
+      "Insert a conditional or unconditional taxonomy rule into DIM_SURVEY_TAXONOMY for a specific catalog option. Resolves the option to its OPTION_ID automatically. For conditional rules, pass condition_option_ids as an ordered array of OPTION_IDs that must co-occur in the same submission (in ascending page order) for this rule to fire.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        poll_id: { type: "string", description: "Poll the option belongs to." },
+        question_key: { type: "string", description: "Question key of the option." },
+        option_value: { type: "string", description: "The option value exactly as stored in DIM_SURVEY_OPTIONS." },
+        bucket: {
+          type: "string",
+          enum: ["consumption", "preference", "demographic"],
+          description: "Taxonomy bucket.",
+        },
+        taxonomy_path: {
+          type: "string",
+          description: "Pipe-delimited taxonomy path (consumption/preference). e.g. 'Sports|Basketball|Active Fan'.",
+        },
+        demographic_key: { type: "string", description: "Demographic key in snake_case (demographic bucket only)." },
+        demographic_value: { type: "string", description: "Demographic value (demographic bucket only)." },
+        demographic_type: {
+          type: "string",
+          enum: ["string", "boolean", "number"],
+          description: "Demographic value type (demographic bucket only).",
+        },
+        confidence: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "Confidence score 0.0–1.0.",
+        },
+        condition_option_ids: {
+          type: "array",
+          items: { type: "number" },
+          description:
+            "Optional. Ordered array of OPTION_IDs that must appear in the same submission (in this page order) for the rule to fire. Omit or pass [] for unconditional rules.",
+        },
+      },
+      required: ["poll_id", "question_key", "option_value", "bucket", "confidence"],
+    },
+  },
 ];
 
-const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers"]);
+const SNOWFLAKE_TOOLS = new Set(["get_survey_catalog", "get_taxonomy", "get_survey_responses", "get_text_answers", "get_answer_patterns", "create_taxonomy_rule"]);
 const CATALOG_TOOLS = new Set(["get_poll", "create_poll", "update_poll"]);
 const CAMPAIGN_TOOLS = new Set(["duplicate_campaign"]);
 

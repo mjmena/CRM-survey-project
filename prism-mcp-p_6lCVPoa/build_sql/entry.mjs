@@ -153,6 +153,102 @@ LIMIT 5000
       };
     }
 
+    if (tool === "get_answer_patterns") {
+      if (!args.poll_id) throw new Error("get_answer_patterns requires poll_id");
+      return {
+        sql: `
+WITH answers AS (
+    SELECT INGESTION_ID, POLL_ID,
+           a.INDEX                    AS ANSWER_POS,
+           a.value:question::STRING   AS QUESTION_KEY,
+           a.value:answer::STRING     AS ANSWER_VALUE
+    FROM ${SCHEMA}.STG_SURVEY_RESPONSES,
+         LATERAL FLATTEN(input => RAW_DATA:answers) a
+    WHERE POLL_ID = ?
+      AND TYPEOF(a.value:answer) = 'VARCHAR'
+)
+SELECT
+    a1.QUESTION_KEY   AS Q1_KEY,
+    o1.OPTION_ID      AS Q1_OPTION_ID,
+    a1.ANSWER_VALUE   AS Q1_OPTION,
+    a2.QUESTION_KEY   AS Q2_KEY,
+    o2.OPTION_ID      AS Q2_OPTION_ID,
+    a2.ANSWER_VALUE   AS Q2_OPTION,
+    COUNT(*)          AS CO_COUNT
+FROM answers a1
+JOIN answers a2
+    ON  a2.INGESTION_ID  = a1.INGESTION_ID
+    AND a2.ANSWER_POS    > a1.ANSWER_POS
+    AND a2.QUESTION_KEY != a1.QUESTION_KEY
+LEFT JOIN ${SCHEMA}.DIM_SURVEY_OPTIONS o1
+    ON  o1.POLL_ID       = a1.POLL_ID
+    AND o1.QUESTION_KEY  = a1.QUESTION_KEY
+    AND o1.OPTION_VALUE  = a1.ANSWER_VALUE
+    AND o1.OPTION_SOURCE = 'catalog'
+LEFT JOIN ${SCHEMA}.DIM_SURVEY_OPTIONS o2
+    ON  o2.POLL_ID       = a2.POLL_ID
+    AND o2.QUESTION_KEY  = a2.QUESTION_KEY
+    AND o2.OPTION_VALUE  = a2.ANSWER_VALUE
+    AND o2.OPTION_SOURCE = 'catalog'
+GROUP BY 1, 2, 3, 4, 5, 6
+ORDER BY CO_COUNT DESC
+LIMIT 50
+        `.trim(),
+        params: [args.poll_id],
+      };
+    }
+
+    if (tool === "create_taxonomy_rule") {
+      const {
+        poll_id, question_key, option_value,
+        bucket, taxonomy_path,
+        demographic_key, demographic_value, demographic_type,
+        confidence, condition_option_ids,
+      } = args;
+
+      if (!poll_id || !question_key || !option_value || !bucket || confidence == null) {
+        throw new Error("create_taxonomy_rule requires: poll_id, question_key, option_value, bucket, confidence");
+      }
+
+      const levels = taxonomy_path ? taxonomy_path.split("|") : null;
+      const taxonomy_depth = levels ? levels.length : null;
+      const taxonomy_levels_json = levels ? JSON.stringify(levels) : "null";
+      const condition_json =
+        condition_option_ids && condition_option_ids.length > 0
+          ? JSON.stringify(condition_option_ids)
+          : "null";
+
+      return {
+        sql: `
+INSERT INTO ${SCHEMA}.DIM_SURVEY_TAXONOMY (
+    OPTION_ID, BUCKET, TAXONOMY_PATH, TAXONOMY_DEPTH, TAXONOMY_LEVELS,
+    DEMOGRAPHIC_KEY, DEMOGRAPHIC_VALUE, DEMOGRAPHIC_TYPE,
+    CONFIDENCE, CONDITION_SEQUENCE, CLASSIFIED_BY
+)
+SELECT o.OPTION_ID, ?, ?, ?, PARSE_JSON(?), ?, ?, ?, ?, PARSE_JSON(?), 'claude'
+FROM ${SCHEMA}.DIM_SURVEY_OPTIONS o
+WHERE o.POLL_ID       = ?
+  AND o.QUESTION_KEY  = ?
+  AND o.OPTION_VALUE  = ?
+  AND o.OPTION_SOURCE = 'catalog'
+        `.trim(),
+        params: [
+          bucket,
+          taxonomy_path ?? null,
+          taxonomy_depth,
+          taxonomy_levels_json,
+          demographic_key ?? null,
+          demographic_value ?? null,
+          demographic_type ?? null,
+          confidence,
+          condition_json,
+          poll_id,
+          question_key,
+          option_value,
+        ],
+      };
+    }
+
     throw new Error(`build_sql: unknown tool "${tool}"`);
   },
 });
