@@ -1,0 +1,7 @@
+schema: workflow/2022.04
+name: Text Response Classify
+settings:
+  error_notification: true
+triggers:
+- id: hi_LmHynn3
+
