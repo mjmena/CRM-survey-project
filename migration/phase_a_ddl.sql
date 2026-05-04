@@ -1,0 +1,113 @@
+-- Phase A: Snowflake DDL & seed
+-- Run as a single script: snowsql -f migration/phase_a_ddl.sql
+-- PREREQUISITE: Braze sync and taxonomy-classification workflows must be
+--               deactivated in Pipedream UI before running this script.
+
+USE SCHEMA MCC_RAW.MARKETING_DEV;
+
+-- ─── Step 1: Create new tables ───────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS DIM_SURVEY_QUESTIONS (
+    POLL_ID            VARCHAR        NOT NULL,
+    QUESTION_KEY       VARCHAR        NOT NULL,
+    QUESTION_TYPE      VARCHAR        NOT NULL,
+    QUESTION_TEXT      VARCHAR,
+    HELP_TEXT          VARCHAR,
+    IS_REQUIRED        BOOLEAN        DEFAULT FALSE,
+    MIN_SELECT         NUMBER(38,0),
+    MAX_LENGTH         NUMBER(38,0),
+    PLACEHOLDER        VARCHAR,
+    SHOW_RESULTS       BOOLEAN        DEFAULT TRUE,
+    AUTO_ADVANCE       BOOLEAN,
+    DEFINITION_VERSION NUMBER(38,0),
+    UPDATED_AT         TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (POLL_ID, QUESTION_KEY)
+);
+
+CREATE TABLE IF NOT EXISTS DIM_SURVEY_OPTIONS (
+    OPTION_ID          NUMBER(38,0)   IDENTITY START 1 INCREMENT 1 NOT NULL,
+    POLL_ID            VARCHAR        NOT NULL,
+    QUESTION_KEY       VARCHAR        NOT NULL,
+    OPTION_VALUE       VARCHAR        NOT NULL,
+    OPTION_SOURCE      VARCHAR        NOT NULL   DEFAULT 'catalog',
+    OPTION_LABEL       VARCHAR,
+    OPTION_DESCRIPTION VARCHAR,
+    IS_CATCH_ALL       BOOLEAN        DEFAULT FALSE,
+    SORT_ORDER         NUMBER(38,0),
+    UPDATED_AT         TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (OPTION_ID),
+    UNIQUE (POLL_ID, QUESTION_KEY, OPTION_VALUE)
+);
+
+CREATE TABLE IF NOT EXISTS DIM_SURVEY_TAXONOMY_NEW (
+    OPTION_ID          NUMBER(38,0)   NOT NULL,
+    BUCKET             VARCHAR        NOT NULL,
+    TAXONOMY_PATH      VARCHAR,
+    TAXONOMY_DEPTH     NUMBER(38,0),
+    TAXONOMY_LEVELS    VARIANT,
+    DEMOGRAPHIC_KEY    VARCHAR,
+    DEMOGRAPHIC_VALUE  VARCHAR,
+    DEMOGRAPHIC_TYPE   VARCHAR,
+    CONFIDENCE         FLOAT,
+    CONDITION_SEQUENCE VARIANT,
+    CLASSIFIED_BY      VARCHAR        DEFAULT 'claude',
+    CREATED_AT         TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
+    UPDATED_AT         TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
+    IS_APPROVED        BOOLEAN        DEFAULT FALSE
+);
+
+-- ─── Step 2: Seed DIM_SURVEY_QUESTIONS from existing catalog ─────────────────
+-- All seeded as 'single'; Phase B corrects multi rows on first Braze sync run.
+
+INSERT INTO DIM_SURVEY_QUESTIONS (POLL_ID, QUESTION_KEY, QUESTION_TYPE, QUESTION_TEXT)
+SELECT POLL_ID, QUESTION_KEY, 'single' AS QUESTION_TYPE, MAX(QUESTION_TEXT) AS QUESTION_TEXT
+FROM DIM_SURVEY_CATALOG
+GROUP BY POLL_ID, QUESTION_KEY;
+
+-- ─── Step 3: Seed DIM_SURVEY_OPTIONS from existing catalog ───────────────────
+
+INSERT INTO DIM_SURVEY_OPTIONS
+    (POLL_ID, QUESTION_KEY, OPTION_VALUE, OPTION_SOURCE, OPTION_LABEL, IS_CATCH_ALL)
+SELECT POLL_ID, QUESTION_KEY, OPTION_VALUE, 'catalog', OPTION_LABEL, IS_CATCH_ALL
+FROM DIM_SURVEY_CATALOG;
+
+-- ─── Step 4: Rename old tables ────────────────────────────────────────────────
+
+ALTER TABLE DIM_SURVEY_CATALOG  RENAME TO DIM_SURVEY_CATALOG_DEPRECATED;
+ALTER TABLE DIM_SURVEY_TAXONOMY RENAME TO DIM_SURVEY_TAXONOMY_DEPRECATED;
+
+-- ─── Step 5: Back-compat views at old names ──────────────────────────────────
+-- SELECT queries from existing workflows keep working.
+-- DML (MERGE/INSERT) on these views will fail — both workflows stay deactivated
+-- until their respective phase code pushes deploy.
+
+CREATE OR REPLACE VIEW DIM_SURVEY_CATALOG AS
+SELECT q.POLL_ID, q.QUESTION_KEY, q.QUESTION_TEXT,
+       o.OPTION_VALUE, o.OPTION_LABEL, o.IS_CATCH_ALL, o.UPDATED_AT
+FROM DIM_SURVEY_QUESTIONS q
+JOIN DIM_SURVEY_OPTIONS o
+  ON o.POLL_ID      = q.POLL_ID
+ AND o.QUESTION_KEY = q.QUESTION_KEY
+WHERE o.OPTION_SOURCE = 'catalog';
+
+CREATE OR REPLACE VIEW DIM_SURVEY_TAXONOMY AS
+SELECT t.POLL_ID, t.QUESTION_KEY, t.OPTION_VALUE, t.BUCKET,
+       t.TAXONOMY_PATH, t.TAXONOMY_DEPTH, t.TAXONOMY_LEVELS,
+       t.DEMOGRAPHIC_KEY, t.DEMOGRAPHIC_VALUE, t.DEMOGRAPHIC_TYPE,
+       t.CONFIDENCE, t.IS_APPROVED, t.UPDATED_AT
+FROM DIM_SURVEY_TAXONOMY_DEPRECATED t;
+
+-- ─── Verification ─────────────────────────────────────────────────────────────
+
+SELECT 'questions'   AS tbl, COUNT(*) AS cnt FROM DIM_SURVEY_QUESTIONS
+UNION ALL
+SELECT 'options',    COUNT(*) FROM DIM_SURVEY_OPTIONS
+UNION ALL
+SELECT 'old_catalog',COUNT(*) FROM DIM_SURVEY_CATALOG_DEPRECATED;
+-- Expect: questions=29, options=138, old_catalog=138
+
+SELECT COUNT(*) AS catalog_view_cnt  FROM DIM_SURVEY_CATALOG;
+-- Expect: 138
+
+SELECT COUNT(*) AS taxonomy_view_cnt FROM DIM_SURVEY_TAXONOMY;
+-- Expect: same as DIM_SURVEY_TAXONOMY_DEPRECATED row count
