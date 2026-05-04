@@ -2,6 +2,267 @@ schema: workflow/2022.04
 name: Text Response Classify
 settings:
   error_notification: true
+  lambda_memory: 1024
+  lambda_timeout: 300
+  network: net_5Lnie3
 triggers:
 - id: hi_LmHynn3
-
+steps:
+- namespace: upsert_text_options
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS tgt
+        USING (
+            SELECT sub.POLL_ID, sub.QUESTION_KEY,
+                   LOWER(TRIM(sub.ANSWER_TEXT)) AS OPTION_VALUE,
+                   'response'                   AS OPTION_SOURCE
+            FROM (
+                SELECT POLL_ID,
+                       a.value:question::STRING AS QUESTION_KEY,
+                       a.value:answer::STRING   AS ANSWER_TEXT
+                FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                     LATERAL FLATTEN(input => RAW_DATA:answers) a
+                WHERE TYPEOF(a.value:answer) = 'VARCHAR'
+                  AND TRIM(a.value:answer::STRING) <> ''
+            ) sub
+            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+                ON q.POLL_ID = sub.POLL_ID AND q.QUESTION_KEY = sub.QUESTION_KEY
+            WHERE q.QUESTION_TYPE = 'text'
+            GROUP BY sub.POLL_ID, sub.QUESTION_KEY, LOWER(TRIM(sub.ANSWER_TEXT))
+        ) src
+        ON  tgt.POLL_ID      = src.POLL_ID
+        AND tgt.QUESTION_KEY = src.QUESTION_KEY
+        AND tgt.OPTION_VALUE = src.OPTION_VALUE
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, OPTION_VALUE, OPTION_SOURCE)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.OPTION_VALUE, 'response')
+      query: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS tgt
+        USING (
+            SELECT sub.POLL_ID, sub.QUESTION_KEY,
+                   LOWER(TRIM(sub.ANSWER_TEXT)) AS OPTION_VALUE,
+                   'response'                   AS OPTION_SOURCE
+            FROM (
+                SELECT POLL_ID,
+                       a.value:question::STRING AS QUESTION_KEY,
+                       a.value:answer::STRING   AS ANSWER_TEXT
+                FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                     LATERAL FLATTEN(input => RAW_DATA:answers) a
+                WHERE TYPEOF(a.value:answer) = 'VARCHAR'
+                  AND TRIM(a.value:answer::STRING) <> ''
+            ) sub
+            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+                ON q.POLL_ID = sub.POLL_ID AND q.QUESTION_KEY = sub.QUESTION_KEY
+            WHERE q.QUESTION_TYPE = 'text'
+            GROUP BY sub.POLL_ID, sub.QUESTION_KEY, LOWER(TRIM(sub.ANSWER_TEXT))
+        ) src
+        ON  tgt.POLL_ID      = src.POLL_ID
+        AND tgt.QUESTION_KEY = src.QUESTION_KEY
+        AND tgt.OPTION_VALUE = src.OPTION_VALUE
+        WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, OPTION_VALUE, OPTION_SOURCE)
+            VALUES (src.POLL_ID, src.QUESTION_KEY, src.OPTION_VALUE, 'response')
+      params: []
+- namespace: fetch_unclassified_text
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        SELECT o.OPTION_ID, o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE,
+               q.QUESTION_TEXT, q.QUESTION_TYPE
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+          ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
+        WHERE o.OPTION_SOURCE = 'response'
+          AND NOT EXISTS (
+            SELECT 1 FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
+            WHERE t.OPTION_ID = o.OPTION_ID
+          )
+        ORDER BY o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE
+        LIMIT 5000
+      query: |-
+        SELECT o.OPTION_ID, o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE,
+               q.QUESTION_TEXT, q.QUESTION_TYPE
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+          ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
+        WHERE o.OPTION_SOURCE = 'response'
+          AND NOT EXISTS (
+            SELECT 1 FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
+            WHERE t.OPTION_ID = o.OPTION_ID
+          )
+        ORDER BY o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE
+        LIMIT 5000
+      params: []
+- namespace: check_has_unclassified
+  runtime: nodejs20.x
+  uses: "./check_has_unclassified/entry.mjs"
+  props:
+    text_options: "{{steps.fetch_unclassified_text.$return_value}}"
+- namespace: fetch_existing_taxonomies
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
+      query: |-
+        SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
+      params: []
+- namespace: build_text_prompt
+  runtime: nodejs20.x
+  uses: "./build_text_prompt/entry.mjs"
+  props:
+    text_options: "{{steps.fetch_unclassified_text.$return_value}}"
+    existing_taxonomies: "{{steps.fetch_existing_taxonomies.$return_value}}"
+- namespace: classify_with_ai
+  runtime: nodejs20.x
+  uses: anthropic-chat@0.2.2
+  props:
+    anthropic:
+      authProvisionId: apn_Oghan1O
+    model: claude-sonnet-4-6
+    userMessage: "{{steps.build_text_prompt.$return_value.combined_message}}"
+    maxTokensToSample: 16384
+- namespace: parse_results
+  runtime: nodejs20.x
+  uses: "./parse_results/entry.mjs"
+  props:
+    ai_response: "{{steps.classify_with_ai.$return_value}}"
+- namespace: flatten_results
+  runtime: nodejs20.x
+  uses: "./flatten_results/entry.mjs"
+  props:
+    ai_results: "{{steps.parse_results.$return_value}}"
+- namespace: upsert_text_taxonomy
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        USING (
+            SELECT
+                o.OPTION_ID,
+                src.BUCKET,
+                src.TAXONOMY_PATH,
+                src.TAXONOMY_DEPTH,
+                src.TAXONOMY_LEVELS,
+                src.DEMOGRAPHIC_KEY,
+                src.DEMOGRAPHIC_VALUE,
+                src.DEMOGRAPHIC_TYPE,
+                src.CONFIDENCE
+            FROM (
+                SELECT
+                    s.value:poll_id::STRING           AS POLL_ID,
+                    s.value:question_key::STRING      AS QUESTION_KEY,
+                    s.value:option_value::STRING      AS OPTION_VALUE,
+                    s.value:bucket::STRING            AS BUCKET,
+                    s.value:taxonomy_path::STRING     AS TAXONOMY_PATH,
+                    s.value:taxonomy_depth::INTEGER   AS TAXONOMY_DEPTH,
+                    s.value:taxonomy_levels           AS TAXONOMY_LEVELS,
+                    s.value:demographic_key::STRING   AS DEMOGRAPHIC_KEY,
+                    s.value:demographic_value::STRING AS DEMOGRAPHIC_VALUE,
+                    s.value:demographic_type::STRING  AS DEMOGRAPHIC_TYPE,
+                    s.value:confidence::FLOAT         AS CONFIDENCE
+                FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
+            ) src
+            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+              ON o.POLL_ID      = src.POLL_ID
+             AND o.QUESTION_KEY = src.QUESTION_KEY
+             AND o.OPTION_VALUE = LOWER(TRIM(src.OPTION_VALUE))
+             AND o.OPTION_SOURCE = 'response'
+        ) AS resolved
+        ON  tgt.OPTION_ID = resolved.OPTION_ID
+        AND tgt.BUCKET    = resolved.BUCKET
+        AND COALESCE(tgt.TAXONOMY_PATH,   '') = COALESCE(resolved.TAXONOMY_PATH,   '')
+        AND COALESCE(tgt.DEMOGRAPHIC_KEY, '') = COALESCE(resolved.DEMOGRAPHIC_KEY, '')
+        WHEN MATCHED THEN UPDATE SET
+            tgt.TAXONOMY_DEPTH    = resolved.TAXONOMY_DEPTH,
+            tgt.TAXONOMY_LEVELS   = resolved.TAXONOMY_LEVELS,
+            tgt.DEMOGRAPHIC_VALUE = resolved.DEMOGRAPHIC_VALUE,
+            tgt.DEMOGRAPHIC_TYPE  = resolved.DEMOGRAPHIC_TYPE,
+            tgt.CONFIDENCE        = resolved.CONFIDENCE,
+            tgt.UPDATED_AT        = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (
+            OPTION_ID, BUCKET,
+            TAXONOMY_PATH, TAXONOMY_DEPTH, TAXONOMY_LEVELS,
+            DEMOGRAPHIC_KEY, DEMOGRAPHIC_VALUE, DEMOGRAPHIC_TYPE,
+            CONFIDENCE
+        ) VALUES (
+            resolved.OPTION_ID, resolved.BUCKET,
+            resolved.TAXONOMY_PATH, resolved.TAXONOMY_DEPTH, resolved.TAXONOMY_LEVELS,
+            resolved.DEMOGRAPHIC_KEY, resolved.DEMOGRAPHIC_VALUE, resolved.DEMOGRAPHIC_TYPE,
+            resolved.CONFIDENCE
+        )
+      query: |-
+        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        USING (
+            SELECT
+                o.OPTION_ID,
+                src.BUCKET,
+                src.TAXONOMY_PATH,
+                src.TAXONOMY_DEPTH,
+                src.TAXONOMY_LEVELS,
+                src.DEMOGRAPHIC_KEY,
+                src.DEMOGRAPHIC_VALUE,
+                src.DEMOGRAPHIC_TYPE,
+                src.CONFIDENCE
+            FROM (
+                SELECT
+                    s.value:poll_id::STRING           AS POLL_ID,
+                    s.value:question_key::STRING      AS QUESTION_KEY,
+                    s.value:option_value::STRING      AS OPTION_VALUE,
+                    s.value:bucket::STRING            AS BUCKET,
+                    s.value:taxonomy_path::STRING     AS TAXONOMY_PATH,
+                    s.value:taxonomy_depth::INTEGER   AS TAXONOMY_DEPTH,
+                    s.value:taxonomy_levels           AS TAXONOMY_LEVELS,
+                    s.value:demographic_key::STRING   AS DEMOGRAPHIC_KEY,
+                    s.value:demographic_value::STRING AS DEMOGRAPHIC_VALUE,
+                    s.value:demographic_type::STRING  AS DEMOGRAPHIC_TYPE,
+                    s.value:confidence::FLOAT         AS CONFIDENCE
+                FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
+            ) src
+            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+              ON o.POLL_ID      = src.POLL_ID
+             AND o.QUESTION_KEY = src.QUESTION_KEY
+             AND o.OPTION_VALUE = LOWER(TRIM(src.OPTION_VALUE))
+             AND o.OPTION_SOURCE = 'response'
+        ) AS resolved
+        ON  tgt.OPTION_ID = resolved.OPTION_ID
+        AND tgt.BUCKET    = resolved.BUCKET
+        AND COALESCE(tgt.TAXONOMY_PATH,   '') = COALESCE(resolved.TAXONOMY_PATH,   '')
+        AND COALESCE(tgt.DEMOGRAPHIC_KEY, '') = COALESCE(resolved.DEMOGRAPHIC_KEY, '')
+        WHEN MATCHED THEN UPDATE SET
+            tgt.TAXONOMY_DEPTH    = resolved.TAXONOMY_DEPTH,
+            tgt.TAXONOMY_LEVELS   = resolved.TAXONOMY_LEVELS,
+            tgt.DEMOGRAPHIC_VALUE = resolved.DEMOGRAPHIC_VALUE,
+            tgt.DEMOGRAPHIC_TYPE  = resolved.DEMOGRAPHIC_TYPE,
+            tgt.CONFIDENCE        = resolved.CONFIDENCE,
+            tgt.UPDATED_AT        = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT (
+            OPTION_ID, BUCKET,
+            TAXONOMY_PATH, TAXONOMY_DEPTH, TAXONOMY_LEVELS,
+            DEMOGRAPHIC_KEY, DEMOGRAPHIC_VALUE, DEMOGRAPHIC_TYPE,
+            CONFIDENCE
+        ) VALUES (
+            resolved.OPTION_ID, resolved.BUCKET,
+            resolved.TAXONOMY_PATH, resolved.TAXONOMY_DEPTH, resolved.TAXONOMY_LEVELS,
+            resolved.DEMOGRAPHIC_KEY, resolved.DEMOGRAPHIC_VALUE, resolved.DEMOGRAPHIC_TYPE,
+            resolved.CONFIDENCE
+        )
+      params: []
