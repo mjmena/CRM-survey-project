@@ -6,15 +6,6 @@ settings:
   lambda_timeout: 240
   network: net_5Lnie3
 triggers:
-- id: ti_taxonomy
-  uses: snowflake-new-row@0.0.4
-  props:
-    snowflake:
-      authProvisionId: apn_yghdQYJ
-    tableName: MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS
-    timer:
-      intervalSeconds: 900
-    uniqueKey: POLL_ID
 - id: dc_kjuLB8b
 - id: hi_VOHV2Qx
 steps:
