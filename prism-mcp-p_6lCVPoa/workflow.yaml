@@ -1,6 +1,5 @@
 schema: workflow/2022.04
 name: PRISM MCP
-inactive: true
 settings:
   error_notification: true
   lambda_timeout: 60
