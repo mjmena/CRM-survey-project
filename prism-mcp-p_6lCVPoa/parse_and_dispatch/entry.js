@@ -374,7 +374,7 @@ async function handleBrazeTool(tool, args, brazeAuth, templateCampaignId) {
   if (tool === "update_poll") {
     const { poll_id, definition, intro_html, outro_html } = args;
     if (!poll_id) return { isError: true, body: { error: "poll_id is required" } };
-    const patch = { id: poll_id };
+    const patch = {};
     if (definition !== undefined) patch.definition = typeof definition === "string" ? definition : JSON.stringify(definition);
     if (intro_html !== undefined) patch.intro_html = intro_html;
     if (outro_html !== undefined) patch.outro_html = outro_html;
