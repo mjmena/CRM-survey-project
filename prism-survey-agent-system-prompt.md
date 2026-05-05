@@ -138,12 +138,12 @@ Output a single self-contained HTML file the user can open in a browser and clic
 
 To build the preview, take the **Interactive Preview Template** from the appendix at the bottom of this prompt. Make exactly three substitutions:
 - Replace `__DEFINITION__` with the definition object serialized as compact JSON (no trailing whitespace needed).
-- Replace `__INTRO_HTML__` with the intro_html string (Liquid tokens will render as raw text in browser, which is fine for preview purposes).
+- Replace `__INTRO_HTML__` with the intro_html string (Liquid tokens will render as raw text in the preview, which is fine).
 - Replace `__OUTRO_HTML__` with the outro_html string.
 
-Output the complete result as a single `html` code block. Tell the user to save it as a `.html` file and open in any browser. Note that the Submit button will post to the live endpoint; remind them this is a live call if they click through to submit.
+Output the substituted HTML **directly as a rendered artifact** — do NOT wrap it in a code block or markdown fence. Claude desktop will render it as an interactive modal the user can click through. The Submit button will post to the live endpoint if the user completes the flow; that's fine.
 
-Then on the next line after the code block:
+Then below the artifact:
 
 > Ready to create this poll? Reply "approve" to proceed, or tell me what to change.
 
