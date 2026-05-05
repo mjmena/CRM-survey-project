@@ -57,6 +57,9 @@
   .text-input:focus { outline: none; border-color: var(--a1); }
   .char-count { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
 
+  .write-in-input { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 13px; }
+  .write-in-input:focus { outline: none; border-color: var(--a1); }
+
   .nav { display: flex; gap: 10px; margin-top: 14px; }
   .btn { border-radius: 12px; padding: 12px; font: 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
   .btn:hover { background: rgba(15, 23, 42, 0.06); }
@@ -134,6 +137,7 @@
     step: 'page',
     pageIndex: 0,
     answers: {},
+    writeIns: {},
     results: [],
     autoAdvanceTimer: null,
   };
@@ -176,8 +180,26 @@
       const q = SURVEY.questions[qk];
       if (!q.required) return true;
       const ans = state.answers[qk];
-      if (q.type === 'multi') return Array.isArray(ans) && ans.length >= (q.min_select || 1);
-      return ans !== undefined && ans !== null && ans !== '';
+
+      if (q.type === 'multi') {
+        if (!Array.isArray(ans) || ans.length === 0) return false;
+        // A catch-all selection bypasses min_select — it's inherently exclusive of picking more.
+        const catchAllSelected = ans.some(v => (q.options || []).find(o => o.value === v && o.is_catch_all));
+        if (!catchAllSelected && ans.length < (q.min_select || 1)) return false;
+      } else {
+        if (ans === undefined || ans === null || ans === '') return false;
+      }
+
+      // If a write-in option is selected, its text field must be non-empty
+      const writeInOpt = (q.options || []).find(o => o.write_in);
+      if (writeInOpt) {
+        const writeInSelected = q.type === 'multi'
+          ? Array.isArray(ans) && ans.includes(writeInOpt.value)
+          : ans === writeInOpt.value;
+        if (writeInSelected && !state.writeIns[qk]?.trim()) return false;
+      }
+
+      return true;
     });
   }
 
@@ -200,31 +222,47 @@
     let body = '';
 
     if (q.type === 'single') {
-      body = q.options.map(opt => `
-        <label class="opt${ans === opt.value ? ' selected' : ''}">
-          <input type="radio" name="${esc(qk)}" value="${esc(opt.value)}"
-                 data-q="${esc(qk)}" data-action="single"
-                 ${ans === opt.value ? 'checked' : ''}>
-          <div>
-            <strong>${esc(opt.label || opt.value)}</strong>
-            ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
-          </div>
-        </label>
-      `).join('');
+      body = q.options.map(opt => {
+        const isSelected = ans === opt.value;
+        const writeInHtml = opt.write_in && isSelected
+          ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in"
+                    placeholder="${esc(opt.write_in_placeholder || '')}"
+                    value="${esc(state.writeIns[qk] || '')}">`
+          : '';
+        return `
+          <label class="opt${isSelected ? ' selected' : ''}">
+            <input type="radio" name="${esc(qk)}" value="${esc(opt.value)}"
+                   data-q="${esc(qk)}" data-action="single"
+                   ${isSelected ? 'checked' : ''}>
+            <div>
+              <strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>
+              ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+              ${writeInHtml}
+            </div>
+          </label>`;
+      }).join('');
 
     } else if (q.type === 'multi') {
       const selected = new Set(ans || []);
-      body = q.options.map(opt => `
-        <label class="opt${selected.has(opt.value) ? ' selected' : ''}">
-          <input type="checkbox" value="${esc(opt.value)}"
-                 data-q="${esc(qk)}" data-action="multi"
-                 ${selected.has(opt.value) ? 'checked' : ''}>
-          <div>
-            <strong>${esc(opt.label || opt.value)}</strong>
-            ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
-          </div>
-        </label>
-      `).join('');
+      body = q.options.map(opt => {
+        const isSelected = selected.has(opt.value);
+        const writeInHtml = opt.write_in && isSelected
+          ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in"
+                    placeholder="${esc(opt.write_in_placeholder || '')}"
+                    value="${esc(state.writeIns[qk] || '')}">`
+          : '';
+        return `
+          <label class="opt${isSelected ? ' selected' : ''}">
+            <input type="checkbox" value="${esc(opt.value)}"
+                   data-q="${esc(qk)}" data-action="multi"
+                   ${isSelected ? 'checked' : ''}>
+            <div>
+              <strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>
+              ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+              ${writeInHtml}
+            </div>
+          </label>`;
+      }).join('');
 
     } else if (q.type === 'text') {
       const max = q.max_length || 500;
@@ -352,6 +390,12 @@
     if (nextBtn) nextBtn.disabled = !canAdvance();
   }
 
+  function setWriteInAnswer(qk, value) {
+    state.writeIns[qk] = value;
+    const nextBtn = document.querySelector('[data-action="next"]');
+    if (nextBtn) nextBtn.disabled = !canAdvance();
+  }
+
   function prevPage() {
     for (let i = state.pageIndex - 1; i >= 0; i--) {
       if (isPageVisible(SURVEY.pages[i])) {
@@ -387,11 +431,19 @@
       submitted_at: new Date().toISOString(),
       answers: Object.entries(state.answers)
         .filter(([qk]) => SURVEY.questions[qk])
-        .map(([question, answer]) => ({
-          question,
-          answer,
-          type: SURVEY.questions[question].type
-        }))
+        .map(([question, answer]) => {
+          const q = SURVEY.questions[question];
+          const writeInOpt = (q.options || []).find(o => o.write_in);
+          if (writeInOpt && q.type === 'single' && answer === writeInOpt.value) {
+            return { question, answer: state.writeIns[question] || answer, type: q.type, write_in: true };
+          }
+          if (writeInOpt && q.type === 'multi' && Array.isArray(answer) && answer.includes(writeInOpt.value)) {
+            const rest = answer.filter(v => v !== writeInOpt.value);
+            const text = state.writeIns[question];
+            return { question, answer: text ? [...rest, text] : rest, type: q.type, write_in: true };
+          }
+          return { question, answer, type: q.type };
+        })
     };
 
     let stats = {};
@@ -431,12 +483,17 @@
       const values = Array.isArray(ans) ? ans : [ans];
       return values.map(v => {
         const labelOpt = (q.options || []).find(o => o.value === v);
-        const match = qStats.find(s => s.label === v);
+        // Write-in sentinel: show the typed text, not the option label
+        if (labelOpt && labelOpt.write_in) {
+          const text = state.writeIns[qk] || v;
+          return { qk, value: text, questionText: q.question, text, percentage: null };
+        }
+        const match = labelOpt && qStats.find(s => s.label === v);
         return {
           qk, value: v,
           questionText: q.question,
           text: (labelOpt && labelOpt.label) || v,
-          percentage: q.show_results === false ? null : (match ? match.percentage : 0)
+          percentage: (!labelOpt || q.show_results === false) ? null : (match ? match.percentage : 0)
         };
       });
     });
@@ -466,7 +523,9 @@
 
   document.body.addEventListener('input', e => {
     const el = e.target;
-    if (el.dataset && el.dataset.action === 'text') setTextAnswer(el.dataset.q, el.value);
+    if (!el.dataset || !el.dataset.action) return;
+    if (el.dataset.action === 'text') setTextAnswer(el.dataset.q, el.value);
+    else if (el.dataset.action === 'write-in') setWriteInAnswer(el.dataset.q, el.value);
   });
 
   document.getElementById('screen').addEventListener('click', e => {

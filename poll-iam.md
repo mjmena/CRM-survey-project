@@ -142,16 +142,21 @@ The submitted answer is an **array** of selected `value` strings. The workflow t
 ```jsonc
 {
   "value": "Brazil",                // required. The stored/tallied value.
-  "label": "🇧🇷 Brazil",            // optional. Display override; defaults to value.
+  "label": "🇧🇷 Brazil",            // optional. Display override; defaults to value. May contain HTML.
   "description": "Five-time champions...",  // optional sub-line under the label
-  "is_catch_all": true              // optional. Marks "Other"/"Prefer not to say" type
+  "is_catch_all": true,             // optional. Marks "Other"/"Prefer not to say" type
                                     // options for downstream classifier to skip.
+  "write_in": true,                 // optional. Reveals an inline text field when this option
+                                    // is selected. The typed text replaces value in the payload.
+  "write_in_placeholder": "..."     // optional. Placeholder for the write-in text field.
 }
 ```
 
 - `value` is the canonical key. Treat it as a stable identifier and don't change it post-launch — that breaks historical tallies and the taxonomy classifier's join.
-- `label` is purely cosmetic. If absent, the renderer falls back to `value`.
+- `label` is rendered as **trusted HTML** — you can include inline styles or `<span>` tags for visual styling (e.g. `<span style="color:#CE1141">Sixers</span>`). Use sparingly; keep it accessible. `value` remains plain text and must not contain HTML.
 - `is_catch_all: true` does **not** change rendering. When the catalog sync writes this row to `DIM_SURVEY_CATALOG`, it sets `IS_CATCH_ALL = TRUE`, which the taxonomy classifier reads and passes to Claude as a `[catch-all]` marker, forcing an empty taxonomies result. Use it on "Other", "Prefer not to say", "None of these", "I won't be watching", etc.
+  - On `multi` questions: selecting a catch-all option bypasses `min_select` — the catch-all stands alone.
+- `write_in: true` turns the option into an "Other (please specify)" fallback. When selected, an inline text input appears; the typed text is submitted as the answer value instead of `value`. The write-in text is excluded from the tally cache (treated like a `text` question answer — lands in Snowflake and goes through the `text-response-classify` path). Pair with `is_catch_all: true` to prevent taxonomy classification on the sentinel value. At most one write-in option per question.
 
 ---
 

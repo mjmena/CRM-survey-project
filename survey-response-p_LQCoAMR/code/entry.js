@@ -23,8 +23,8 @@ export default defineComponent({
     // so we skip them here — they still land in Snowflake via the RAW_DATA insert.
     // Multi-select answers arrive as arrays; iterate so each option is counted.
     if (answers && Array.isArray(answers)) {
-      for (const { question, answer, type } of answers) {
-        if (type === 'text') continue;
+      for (const { question, answer, type, write_in } of answers) {
+        if (type === 'text' || write_in) continue;
         if (!stats[question]) stats[question] = {};
 
         const values = Array.isArray(answer) ? answer : [answer];
