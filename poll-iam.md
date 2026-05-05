@@ -29,8 +29,50 @@ When you ship a new survey you produce all three. The remainder of this doc is m
   "version": 1,                                 // bump on breaking schema changes
   "title": "...",                               // shown in the default intro header
   "intro_subtitle": "...",                      // optional subtitle
+  "theme":    { /* Theme, optional — see §Theme below */ },
   "pages":     [ /* Page, in display order */ ],
   "questions": { /* keyed map of Question */ }
+}
+```
+
+---
+
+## Theme
+
+All fields are optional. Omitting `theme` entirely (or any individual key) falls back to the renderer defaults.
+
+```jsonc
+{
+  "theme": {
+    "accent": "#167ba5",               // --a1: buttons, selected borders, links
+    "bg1":    "#fff",                  // --bg1: modal gradient top
+    "bg2":    "#f6f8fb",               // --bg2: modal gradient bottom
+    "card":   "#fff",                  // --card: question card background
+    "text":   "#0f172a",              // --text: body copy
+    "muted":  "rgba(15,23,42,0.68)",  // --muted: captions and sub-labels
+    "border": "rgba(15,23,42,0.14)",  // --border: card/option borders
+
+    "option_style": "spin"             // "spin" | "pulse" — animation on selection (omit = none)
+  }
+}
+```
+
+**`option_style` values:**
+- `"spin"` — a small filled circle (matching the accent color) appears beside the option and spins once on selection.
+- `"pulse"` — the entire option row does a quick scale-pop when selected.
+- Omitted — no animation; `.selected` applies the tint only (existing behavior).
+
+**Dark theme example:**
+```json
+"theme": {
+  "accent": "#f59e0b",
+  "bg1": "#1a1a2e",
+  "bg2": "#16213e",
+  "card": "#0f3460",
+  "text": "#eaeaea",
+  "muted": "rgba(234,234,234,0.55)",
+  "border": "rgba(255,255,255,0.1)",
+  "option_style": "spin"
 }
 ```
 

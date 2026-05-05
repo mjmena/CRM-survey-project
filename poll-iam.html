@@ -1,6 +1,6 @@
 <!-- Survey renderer. Schema and design notes live in poll-iam.md alongside this file. -->
 
-{% assign variant = event_properties.${ampl_flag_key} | default: 'crm_default_survey' %}
+{% assign variant = event_properties.${ampl_flag_key} | default: campaign.${name} %}
 {% catalog_items crm_prism_surveys {{variant}} :rerender %}
 {% if items[0] == blank %}
 {% abort_message('Survey catalog lookup returned no items for this variant') %}
@@ -52,6 +52,22 @@
   .opt strong { display: block; font-weight: 650; font-size: 13.5px; }
   .opt span { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
   .opt.selected { background: rgba(22, 123, 165, 0.08); border-color: var(--a1); }
+
+  .opt-indicator { width: 10px; height: 10px; border-radius: 50%; background: var(--a1); flex-shrink: 0; margin-top: 4px; opacity: 0; transition: opacity 0.2s; }
+  .opt.selected .opt-indicator { opacity: 1; }
+
+  @keyframes opt-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .opt.anim-spin.selected .opt-indicator { animation: opt-spin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  @keyframes opt-pulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .opt.anim-pulse.selected { animation: opt-pulse 0.3s ease; }
 
   .text-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
   .text-input:focus { outline: none; border-color: var(--a1); }
@@ -132,6 +148,12 @@
   const POLL_ID = '{{ poll.id }}';
   const MARKET_NAME = '{{event_properties.${market_name}}}';
   const SUBMIT_URL = 'https://eo9ujqadjkl294i.m.pipedream.net';
+
+  const THEME = SURVEY.theme || {};
+  const THEME_VARS = { accent: '--a1', bg1: '--bg1', bg2: '--bg2', card: '--card', text: '--text', muted: '--muted', border: '--border' };
+  const root = document.documentElement;
+  Object.entries(THEME_VARS).forEach(([key, cssVar]) => { if (THEME[key]) root.style.setProperty(cssVar, THEME[key]); });
+  const OPT_ANIM_CLASS = ['spin', 'pulse'].includes(THEME.option_style) ? 'anim-' + THEME.option_style : '';
 
   const state = {
     step: 'page',
@@ -230,7 +252,8 @@
                     value="${esc(state.writeIns[qk] || '')}">`
           : '';
         return `
-          <label class="opt${isSelected ? ' selected' : ''}">
+          <label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">
+            ${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}
             <input type="radio" name="${esc(qk)}" value="${esc(opt.value)}"
                    data-q="${esc(qk)}" data-action="single"
                    ${isSelected ? 'checked' : ''}>
@@ -252,7 +275,8 @@
                     value="${esc(state.writeIns[qk] || '')}">`
           : '';
         return `
-          <label class="opt${isSelected ? ' selected' : ''}">
+          <label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">
+            ${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}
             <input type="checkbox" value="${esc(opt.value)}"
                    data-q="${esc(qk)}" data-action="multi"
                    ${isSelected ? 'checked' : ''}>
