@@ -132,38 +132,20 @@ Call `mcp__crm-prism__get_survey_catalog` and scan for option values relevant to
 
 Liquid personalization (`{{ ${first_name} | default: '...' }}`) works in `intro_html` and `outro_html`. It does **not** work inside `definition` — the definition is parsed as JSON in the browser, not server-rendered.
 
-### 5. Show the preview — do not write anything yet
+### 5. Generate an interactive HTML preview — do not write anything yet
 
-Present in this exact order:
+Output a single self-contained HTML file the user can open in a browser and click through. **Do not produce a static text/markdown representation of the poll.** The user must be able to interact with the rendered modal.
 
----
-**Poll ID / Campaign Name:** `prism_<topic>_<year>_survey`
+To build the preview, take the **Interactive Preview Template** from the appendix at the bottom of this prompt. Make exactly three substitutions:
+- Replace `__DEFINITION__` with the definition object serialized as compact JSON (no trailing whitespace needed).
+- Replace `__INTRO_HTML__` with the intro_html string (Liquid tokens will render as raw text in browser, which is fine for preview purposes).
+- Replace `__OUTRO_HTML__` with the outro_html string.
 
-**intro_html:**
-```html
-[rendered intro_html]
-```
+Output the complete result as a single `html` code block. Tell the user to save it as a `.html` file and open in any browser. Note that the Submit button will post to the live endpoint; remind them this is a live call if they click through to submit.
 
-**Pages and Questions:**
+Then on the next line after the code block:
 
-Page 1 — `page_id`
-- **question_key** (single, required): "Question text?"
-  - Option A
-  - Option B
-  - Prefer Not To Say *(catch-all)*
-
-Page 2 — `page_id` *(shown if question_key ≠ "Prefer Not To Say")*
-- **question_key_2** (multi, required, min 1): "Question text?"
-  - Option A
-  - Option B
-
-**outro_html:**
-```html
-[rendered outro_html]
-```
-
----
-Ready to create this poll? Reply "approve" to proceed, or tell me what to change.
+> Ready to create this poll? Reply "approve" to proceed, or tell me what to change.
 
 ### 6. On approval, execute in order
 
@@ -213,7 +195,7 @@ intro_html:
   NEW: <h3 class="title">{{ ${first_name} | default: 'Hey' }} — what does success look like?</h3>
 ```
 
-Follow the diff with the full new-state preview (same format as Workflow A Step 5). Then ask for approval.
+Follow the diff with an interactive HTML preview of the new state (same format as Workflow A Step 5 — a clickable HTML file, not a static text representation). Then ask for approval.
 
 ### 4. On approval, execute
 
@@ -358,3 +340,261 @@ Verify all of these before showing any preview:
 - [ ] `show_if_answer` only references questions on earlier pages
 - [ ] `version` bumped (updates only)
 - [ ] Explicit approval received before any write call
+
+---
+
+## Interactive Preview Template
+
+This is the live renderer with Liquid stripped and three placeholders. Substitute `__DEFINITION__`, `__INTRO_HTML__`, and `__OUTRO_HTML__` with the actual values and output the whole block as one `html` code block.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Poll Preview</title>
+<style>
+  :root {
+    --bg1: #fff;
+    --bg2: #f6f8fb;
+    --card: #fff;
+    --border: rgba(15, 23, 42, 0.14);
+    --text: #0f172a;
+    --muted: rgba(15, 23, 42, 0.68);
+    --a1: #167ba5;
+    --r: 16px;
+    --shadow: 0 18px 60px rgba(2, 6, 23, 0.16);
+  }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); height: 100dvh; box-sizing: border-box; }
+  .screen { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 14px; box-sizing: border-box; }
+  .modal { width: min(480px, 100%); background: linear-gradient(180deg, var(--bg1), var(--bg2)); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; position: absolute; top: 10%; left: 50%; transform: translateX(-50%); }
+  .head { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); border: 1px solid var(--border); background: rgba(22, 123, 165, 0.06); padding: 6px 10px; border-radius: 99px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--a1); box-shadow: 0 0 0 3px rgba(22, 123, 165, 0.16); }
+  .close { width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .content { padding: 14px; }
+  .title { margin: 0 0 6px; font-size: 18px; letter-spacing: 0.2px; }
+  .sub { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .progress { display: flex; gap: 4px; margin-top: 12px; }
+  .bar { flex: 1; height: 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--a1); transition: width 0.4s ease; }
+  .card { margin-top: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 1px 0 rgba(2, 6, 23, 0.04); }
+  .q { margin: 0 0 6px; font-size: 15px; line-height: 1.35; font-weight: 600; }
+  .help { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.8); cursor: pointer; transition: 0.2s; margin-top: 8px; }
+  .opt:hover { background: rgba(22, 123, 165, 0.05); border-color: rgba(22, 123, 165, 0.28); }
+  .opt input { margin-top: 2px; }
+  .opt strong { display: block; font-weight: 650; font-size: 13.5px; }
+  .opt span { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+  .opt.selected { background: rgba(22, 123, 165, 0.08); border-color: var(--a1); }
+  .opt-indicator { width: 10px; height: 10px; border-radius: 50%; background: var(--a1); flex-shrink: 0; margin-top: 4px; opacity: 0; transition: opacity 0.2s; }
+  .opt.selected .opt-indicator { opacity: 1; }
+  @keyframes opt-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .opt.anim-spin.selected .opt-indicator { animation: opt-spin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes opt-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  .opt.anim-pulse.selected { animation: opt-pulse 0.3s ease; }
+  .text-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
+  .text-input:focus { outline: none; border-color: var(--a1); }
+  .char-count { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
+  .write-in-input { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 13px; }
+  .write-in-input:focus { outline: none; border-color: var(--a1); }
+  .nav { display: flex; gap: 10px; margin-top: 14px; }
+  .btn { border-radius: 12px; padding: 12px; font: 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
+  .btn:hover { background: rgba(15, 23, 42, 0.06); }
+  .btn.primary { background: var(--a1); color: #fff; border-color: rgba(15, 23, 42, 0.1); }
+  .btn.primary:hover { background: #126384; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.86); margin-top: 8px; }
+  .item b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .summary-bar { height: 6px; background: rgba(15, 23, 42, 0.05); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .summary-bar-fill { height: 100%; background: var(--a1); border-radius: 99px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; }
+  @media (max-width: 520px) { .screen { padding: 14px 10px; align-items: flex-end; } .modal { width: 100%; border-radius: 18px; max-height: 92vh; } }
+</style>
+
+<body>
+  <div class="screen" id="screen">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Survey">
+      <div class="head">
+        <div class="badge"><span class="dot"></span><span>Poll</span></div>
+        <button class="close" data-action="dismiss" aria-label="Close">&times;</button>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+  <script type="application/json" id="tmpl-definition">__DEFINITION__</script>
+  <script type="text/html" id="tmpl-intro">__INTRO_HTML__</script>
+  <script type="text/html" id="tmpl-outro">__OUTRO_HTML__</script>
+</body>
+
+<script>
+(function () {
+  const VARIANT = 'preview';
+  window.__VARIANT__ = VARIANT;
+
+  const SURVEY = (function () {
+    const tmpl = document.getElementById('tmpl-definition');
+    const raw = (tmpl && tmpl.textContent || '').trim();
+    if (!raw) return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+    try {
+      let parsed = JSON.parse(raw);
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+      return parsed;
+    } catch (e) {
+      console.error('[preview] JSON.parse failed:', e.message);
+      return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+    }
+  })();
+
+  const DEVICE_ID = 'preview-device';
+  const EXTERNAL_ID = 'preview-user';
+  const POLL_ID = SURVEY.poll_id || 'preview';
+  const MARKET_NAME = 'preview';
+  const SUBMIT_URL = 'https://eo9ujqadjkl294i.m.pipedream.net';
+
+  const THEME = SURVEY.theme || {};
+  const THEME_VARS = { accent: '--a1', bg1: '--bg1', bg2: '--bg2', card: '--card', text: '--text', muted: '--muted', border: '--border' };
+  const root = document.documentElement;
+  Object.entries(THEME_VARS).forEach(([key, cssVar]) => { if (THEME[key]) root.style.setProperty(cssVar, THEME[key]); });
+  const OPT_ANIM_CLASS = ['spin', 'pulse'].includes(THEME.option_style) ? 'anim-' + THEME.option_style : '';
+
+  const state = { step: 'page', pageIndex: 0, answers: {}, writeIns: {}, results: [], autoAdvanceTimer: null };
+
+  function evalUserPredicate(p) { return true; }
+  function evalAnswerPredicate(p) {
+    if (!p) return true;
+    const ans = state.answers[p.question];
+    switch (p.op) {
+      case 'equals': return ans === p.values;
+      case 'in': return Array.isArray(p.values) && p.values.includes(ans);
+      case 'not_in': return Array.isArray(p.values) && !p.values.includes(ans);
+      case 'is_set': return ans !== undefined && ans !== null && ans !== '';
+      case 'array_contains': return Array.isArray(ans) && p.values.some(v => ans.includes(v));
+      default: return true;
+    }
+  }
+  function isPageVisible(page) {
+    if (page.show_if_user && !evalUserPredicate(page.show_if_user)) return false;
+    if (page.show_if_answer && !evalAnswerPredicate(page.show_if_answer)) return false;
+    return true;
+  }
+  function visibleQuestions() {
+    const page = SURVEY.pages[state.pageIndex];
+    if (!page || !page.groups) return [];
+    return page.groups.flatMap(g => g.questions).filter(qk => {
+      const q = SURVEY.questions[qk];
+      if (!q) return false;
+      if (q.show_if_user && !evalUserPredicate(q.show_if_user)) return false;
+      if (q.show_if_answer && !evalAnswerPredicate(q.show_if_answer)) return false;
+      return true;
+    });
+  }
+  function canAdvance() {
+    return visibleQuestions().every(qk => {
+      const q = SURVEY.questions[qk];
+      if (!q.required) return true;
+      const ans = state.answers[qk];
+      if (q.type === 'multi') {
+        if (!Array.isArray(ans) || ans.length === 0) return false;
+        const catchAllSelected = ans.some(v => (q.options || []).find(o => o.value === v && o.is_catch_all));
+        if (!catchAllSelected && ans.length < (q.min_select || 1)) return false;
+      } else {
+        if (ans === undefined || ans === null || ans === '') return false;
+      }
+      const writeInOpt = (q.options || []).find(o => o.write_in);
+      if (writeInOpt) {
+        const writeInSelected = q.type === 'multi' ? Array.isArray(ans) && ans.includes(writeInOpt.value) : ans === writeInOpt.value;
+        if (writeInSelected && !state.writeIns[qk]?.trim()) return false;
+      }
+      return true;
+    });
+  }
+  function isLastVisiblePage() {
+    for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
+      if (isPageVisible(SURVEY.pages[i])) return false;
+    }
+    return true;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function renderQuestion(qk) {
+    const q = SURVEY.questions[qk];
+    const ans = state.answers[qk];
+    let body = '';
+    if (q.type === 'single') {
+      body = q.options.map(opt => {
+        const isSelected = ans === opt.value;
+        const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
+        return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="radio" name="${esc(qk)}" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="single" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
+      }).join('');
+    } else if (q.type === 'multi') {
+      const selected = new Set(ans || []);
+      body = q.options.map(opt => {
+        const isSelected = selected.has(opt.value);
+        const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
+        return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="checkbox" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="multi" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
+      }).join('');
+    } else if (q.type === 'text') {
+      const max = q.max_length || 500;
+      const len = (ans || '').length;
+      body = `<textarea class="text-input" data-q="${esc(qk)}" data-action="text" maxlength="${max}" placeholder="${esc(q.placeholder || '')}">${esc(ans || '')}</textarea><div class="char-count"><span data-char-count="${esc(qk)}">${len}</span> / ${max}</div>`;
+    }
+    return `<div class="card"><p class="q">${esc(q.question)}</p>${q.help_text ? `<p class="help">${esc(q.help_text)}</p>` : ''}${body}</div>`;
+  }
+  function templateHtml(id) { const el = document.getElementById(id); return el ? el.textContent : ''; }
+  const DEFAULT_INTRO = `<h3 class="title">${esc(SURVEY.title || '')}</h3><p class="sub">Your responses help us understand what readers are thinking.</p>`;
+  const DEFAULT_OUTRO = `<h3 class="title">Thanks!</h3><p class="sub">Here's how your answers compare to other readers.</p><div data-results-slot></div><div class="nav" style="margin-top:14px;"><button class="btn" data-action="dismiss">Close</button></div>`;
+  function renderPageView() {
+    const page = SURVEY.pages[state.pageIndex] || {};
+    const header = state.pageIndex === 0 ? (templateHtml('tmpl-intro') || DEFAULT_INTRO) : (page.title ? `<h3 class="title">${esc(page.title)}</h3>` : '');
+    const progress = SURVEY.pages.length > 1 ? `<div class="progress">${SURVEY.pages.map((_, i) => `<div class="bar"><i style="width:${i < state.pageIndex ? 100 : i === state.pageIndex ? 50 : 0}%"></i></div>`).join('')}</div>` : '';
+    const questions = visibleQuestions().map(renderQuestion).join('');
+    const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
+    const nav = `<div class="nav">${state.pageIndex > 0 ? '<button class="btn" data-action="prev">Back</button>' : ''}<button class="btn primary" data-action="next" ${canAdvance() ? '' : 'disabled'}>${nextLabel}</button></div>`;
+    return `${header}${progress}${questions}${nav}`;
+  }
+  function renderDoneView() {
+    const items = state.results.map(r => `<div class="item"><b>${esc(r.questionText)}</b><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:600;">${esc(r.text)}</span>${r.percentage != null ? `<span style="font-weight:bold;color:var(--a1)">${r.percentage}%</span>` : ''}</div>${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width:0%"></div></div>` : ''}</div>`).join('');
+    const html = templateHtml('tmpl-outro') || DEFAULT_OUTRO;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const slot = wrapper.querySelector('[data-results-slot]');
+    if (slot) slot.innerHTML = items; else wrapper.insertAdjacentHTML('beforeend', items);
+    return wrapper.innerHTML;
+  }
+  function render() { document.getElementById('content').innerHTML = state.step === 'page' ? renderPageView() : renderDoneView(); }
+  function setSingleAnswer(qk, value) {
+    state.answers[qk] = value; render();
+    const q = SURVEY.questions[qk];
+    if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) { clearTimeout(state.autoAdvanceTimer); state.autoAdvanceTimer = setTimeout(nextPage, 350); }
+  }
+  function toggleMulti(qk, value) { const arr = [...(state.answers[qk] || [])]; const i = arr.indexOf(value); if (i === -1) arr.push(value); else arr.splice(i, 1); state.answers[qk] = arr; render(); }
+  function setTextAnswer(qk, value) { state.answers[qk] = value; const counter = document.querySelector(`[data-char-count="${CSS.escape(qk)}"]`); if (counter) counter.textContent = value.length; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
+  function setWriteInAnswer(qk, value) { state.writeIns[qk] = value; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
+  function prevPage() { for (let i = state.pageIndex - 1; i >= 0; i--) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } }
+  function nextPage() { for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } submit(); }
+  async function submit() {
+    const payload = { poll_id: POLL_ID, device_id: DEVICE_ID, external_id: EXTERNAL_ID, market_name: MARKET_NAME, variant: VARIANT, submitted_at: new Date().toISOString(), answers: Object.entries(state.answers).filter(([qk]) => SURVEY.questions[qk]).map(([question, answer]) => { const q = SURVEY.questions[question]; const writeInOpt = (q.options || []).find(o => o.write_in); if (writeInOpt && q.type === 'single' && answer === writeInOpt.value) return { question, answer: state.writeIns[question] || answer, type: q.type, write_in: true }; if (writeInOpt && q.type === 'multi' && Array.isArray(answer) && answer.includes(writeInOpt.value)) { const rest = answer.filter(v => v !== writeInOpt.value); const text = state.writeIns[question]; return { question, answer: text ? [...rest, text] : rest, type: q.type, write_in: true }; } return { question, answer, type: q.type }; }) };
+    let stats = {};
+    try { const resp = await fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const data = await resp.json(); stats = (data && data.$response && data.$response.body) || data || {}; } catch (e) {}
+    state.results = buildResults(stats); state.step = 'done'; render();
+    setTimeout(() => { state.results.forEach(r => { if (r.percentage == null) return; const bar = document.querySelector(`[data-bar="${CSS.escape(r.qk + '|' + r.value)}"]`); if (bar) bar.style.width = r.percentage + '%'; }); }, 50);
+  }
+  function buildResults(stats) {
+    return Object.entries(state.answers).flatMap(([qk, ans]) => {
+      const q = SURVEY.questions[qk]; if (!q) return [];
+      const qStats = (stats && stats[qk]) || [];
+      if (q.type === 'text') return [{ qk, value: ans, questionText: q.question, text: ans, percentage: null }];
+      const values = Array.isArray(ans) ? ans : [ans];
+      return values.map(v => { const labelOpt = (q.options || []).find(o => o.value === v); if (labelOpt && labelOpt.write_in) { const text = state.writeIns[qk] || v; return { qk, value: text, questionText: q.question, text, percentage: null }; } const match = labelOpt && qStats.find(s => s.label === v); return { qk, value: v, questionText: q.question, text: (labelOpt && labelOpt.label) || v, percentage: (!labelOpt || q.show_results === false) ? null : (match ? match.percentage : 0) }; });
+    });
+  }
+  function dismiss() { /* preview mode — no-op */ }
+  document.body.addEventListener('click', e => { const target = e.target.closest('[data-action]'); if (!target) return; const action = target.dataset.action; if (action === 'prev') prevPage(); else if (action === 'next') nextPage(); else if (action === 'dismiss') dismiss(); });
+  document.body.addEventListener('change', e => { const el = e.target; if (!el.dataset || !el.dataset.action) return; if (el.dataset.action === 'single') setSingleAnswer(el.dataset.q, el.value); else if (el.dataset.action === 'multi') toggleMulti(el.dataset.q, el.value); });
+  document.body.addEventListener('input', e => { const el = e.target; if (!el.dataset || !el.dataset.action) return; if (el.dataset.action === 'text') setTextAnswer(el.dataset.q, el.value); else if (el.dataset.action === 'write-in') setWriteInAnswer(el.dataset.q, el.value); });
+  document.getElementById('screen').addEventListener('click', e => { if (e.target.id === 'screen' && state.step === 'done') dismiss(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.step === 'done') dismiss(); });
+  render();
+})();
+</script>
+```
