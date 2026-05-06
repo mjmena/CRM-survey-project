@@ -1,0 +1,10 @@
+[project]
+name = "prism-mcp-wrapper"
+version = "0.1.0"
+description = "MCP Wrapper for PRISM Pipedream workflow"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+]

@@ -257,7 +257,7 @@ What is and isn't Liquid-evaluated matters for authoring:
 |---|---|---|---|
 | `definition` | JSON string | **No** | Plain JSON. `{{ }}` tokens here are NOT interpolated. |
 | `intro_html` | HTML | **Yes** (via `:rerender` flag) | Personalization tokens like `{{ ${first_name} }}` work. Content blocks `{{content_blocks.${...}}}` work. **Recursive `{% catalog_items %}` does not work.** |
-| `outro_html` | HTML | **Yes** | Same rules. Must contain `<div data-results-slot></div>` somewhere — the renderer injects per-question result cards into that slot. |
+| `outro_html` | HTML | **Yes** | Same rules. Must contain `<div data-results-slot></div>` somewhere — the renderer injects per-question result cards into that slot. For `multi` questions, all selected answers are grouped under a single question header card rather than repeating the header per answer. |
 
 Putting Liquid inside `definition` strings (e.g. `"question": "Hi {{${first_name}}} — ..."`) **does not work** — `definition` is parsed as JSON in the browser, not server-rendered.
 
@@ -292,6 +292,20 @@ Things the workflow does that affect authoring:
 - **Tallies are cached** in a Pipedream data store keyed by `poll_id`. The cache survives across submissions and is what powers the inline percentage in the response.
 - **Free-text and `show_results: false` are still inserted into Snowflake.** They're suppressed from the **rendered** done view, not from the data.
 - **Missing answers are dropped** at submit time — the renderer only sends `state.answers` keys that exist in `SURVEY.questions`.
+- **Answers for hidden questions are cleared immediately** when a gating answer changes. If a user answers "Yes" → selects options on a gated page → goes back and changes to "No", the gated page's answers are wiped from state at the moment of the change — they do not appear on the done view or in the payload.
+
+---
+
+## Braze click tracking
+
+The renderer fires `brazeBridge.logClick` at two points:
+
+| Event | When | Button ID |
+|---|---|---|
+| `Q1`, `Q2`, … `Qn` | User advances past page `n` (Next / auto-advance / Submit on the last question page). Fires **at most once per page per session** — back-and-forth does not re-fire. | Page index, 1-based |
+| `Submit` | Survey submitted (after the last page is completed). | `Submit` |
+
+Use these as a funnel in Braze: `Q1` impressions → `Q2` completions → … → `Submit` shows drop-off at each step. No click is fired for the Close button.
 
 ---
 

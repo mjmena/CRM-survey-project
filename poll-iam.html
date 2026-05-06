@@ -162,6 +162,7 @@
     writeIns: {},
     results: [],
     autoAdvanceTimer: null,
+    pagesLogged: new Set(),
   };
 
   function evalUserPredicate(p) { return true; }
@@ -222,6 +223,22 @@
       }
 
       return true;
+    });
+  }
+
+  function clearHiddenAnswers() {
+    SURVEY.pages.forEach(page => {
+      const pageVisible = isPageVisible(page);
+      (page.groups || []).forEach(g => {
+        g.questions.forEach(qk => {
+          const q = SURVEY.questions[qk];
+          const visible = pageVisible && (!q || !q.show_if_answer || evalAnswerPredicate(q.show_if_answer));
+          if (!visible) {
+            delete state.answers[qk];
+            delete state.writeIns[qk];
+          }
+        });
+      });
     });
   }
 
@@ -363,14 +380,27 @@
   }
 
   function renderDoneView() {
-    const items = state.results.map(r => `
+    const grouped = [];
+    const seen = new Map();
+    for (const r of state.results) {
+      if (!seen.has(r.qk)) {
+        const group = { questionText: r.questionText, qk: r.qk, answers: [] };
+        seen.set(r.qk, group);
+        grouped.push(group);
+      }
+      seen.get(r.qk).answers.push(r);
+    }
+
+    const items = grouped.map(g => `
       <div class="item">
-        <b>${esc(r.questionText)}</b>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12.5px; font-weight:600;">${r.text}</span>
-          ${r.percentage != null ? `<span style="font-weight:bold; color:var(--a1)">${r.percentage}%</span>` : ''}
-        </div>
-        ${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width: 0%"></div></div>` : ''}
+        <b>${esc(g.questionText)}</b>
+        ${g.answers.map(r => `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <span style="font-size:12.5px; font-weight:600;">${r.text}</span>
+            ${r.percentage != null ? `<span style="font-weight:bold; color:var(--a1)">${r.percentage}%</span>` : ''}
+          </div>
+          ${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width: 0%"></div></div>` : ''}
+        `).join('')}
       </div>
     `).join('');
 
@@ -390,6 +420,7 @@
 
   function setSingleAnswer(qk, value) {
     state.answers[qk] = value;
+    clearHiddenAnswers();
     render();
     const q = SURVEY.questions[qk];
     if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) {
@@ -403,6 +434,7 @@
     const i = arr.indexOf(value);
     if (i === -1) arr.push(value); else arr.splice(i, 1);
     state.answers[qk] = arr;
+    clearHiddenAnswers();
     render();
   }
 
@@ -431,6 +463,12 @@
   }
 
   function nextPage() {
+    if (!state.pagesLogged.has(state.pageIndex)) {
+      state.pagesLogged.add(state.pageIndex);
+      if (window.brazeBridge?.logClick) {
+        window.brazeBridge.logClick('Q' + (state.pageIndex + 1));
+      }
+    }
     for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
       if (isPageVisible(SURVEY.pages[i])) {
         state.pageIndex = i;
@@ -442,8 +480,13 @@
   }
 
   async function submit() {
-    if (window.brazeBridge && window.brazeBridge.addToUserProperty) {
-      window.brazeBridge.addToUserProperty('crm_surveys_completed', POLL_ID);
+    if (window.brazeBridge) {
+      if (window.brazeBridge.addToUserProperty) {
+        window.brazeBridge.addToUserProperty('crm_surveys_completed', POLL_ID);
+      }
+      if (window.brazeBridge.logClick) {
+        window.brazeBridge.logClick('Submit');
+      }
     }
 
     const payload = {
@@ -454,7 +497,13 @@
       variant: VARIANT,
       submitted_at: new Date().toISOString(),
       answers: Object.entries(state.answers)
-        .filter(([qk]) => SURVEY.questions[qk])
+        .filter(([qk]) => {
+          if (!SURVEY.questions[qk]) return false;
+          const page = SURVEY.pages.find(p => (p.groups || []).some(g => g.questions.includes(qk)));
+          if (!page || !isPageVisible(page)) return false;
+          const q = SURVEY.questions[qk];
+          return !q.show_if_answer || evalAnswerPredicate(q.show_if_answer);
+        })
         .map(([question, answer]) => {
           const q = SURVEY.questions[question];
           const writeInOpt = (q.options || []).find(o => o.write_in);

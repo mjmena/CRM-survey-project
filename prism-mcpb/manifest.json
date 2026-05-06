@@ -1,0 +1,29 @@
+{
+  "manifest_version": "0.3",
+  "name": "prism-mcp-wrapper",
+  "display_name": "PRISM Pipedream Wrapper",
+  "version": "1.0.0",
+  "description": "Wraps the PRISM Pipedream workflow in a local MCP Server",
+  "author": {
+    "name": "PRISM Developer"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "env": {
+        "PIPEDREAM_ACCESS_TOKEN": "${user_config.access_token}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "user_config": {
+    "access_token": {
+      "type": "string",
+      "title": "Pipedream Access Token",
+      "description": "Bearer token required to authenticate with the Pipedream workflow",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}
