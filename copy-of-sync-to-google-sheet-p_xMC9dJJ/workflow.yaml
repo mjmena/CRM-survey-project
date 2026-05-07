@@ -21,7 +21,7 @@ steps:
                 TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
-            WHERE RAW_DATA:poll_id IS NOT NULL
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
         ),
         tally AS (
             SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
@@ -38,7 +38,7 @@ steps:
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            WHERE RAW_DATA:poll_id IS NOT NULL
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
@@ -66,7 +66,7 @@ steps:
                 TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
-            WHERE RAW_DATA:poll_id IS NOT NULL
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
         ),
         tally AS (
             SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
@@ -83,7 +83,7 @@ steps:
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            WHERE RAW_DATA:poll_id IS NOT NULL
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
@@ -103,11 +103,100 @@ steps:
             AND o.OPTION_SOURCE = 'catalog'
         ORDER BY t.poll_id, tally.question_key, tally.response_count DESC
       params: []
+- namespace: query_all_responses
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        WITH raw AS (
+            SELECT
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                INGESTION_ID              AS ingestion_id,
+                SUBMITTED_AT              AS submitted_at,
+                a.index                   AS answer_idx,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                 LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
+        ),
+        expanded AS (
+            SELECT poll_id, ingestion_id, submitted_at, answer_idx, question_key,
+                   answer_variant::STRING AS answer_value
+            FROM raw WHERE answer_typeof = 'VARCHAR'
+            UNION ALL
+            SELECT raw.poll_id, raw.ingestion_id, raw.submitted_at, raw.answer_idx, raw.question_key,
+                   ia.value::STRING AS answer_value
+            FROM raw, LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+        )
+        SELECT
+            e.poll_id                                      AS POLL_ID,
+            e.ingestion_id                                 AS INGESTION_ID,
+            e.submitted_at                                 AS SUBMITTED_AT,
+            e.answer_idx                                   AS ANSWER_IDX,
+            COALESCE(q.QUESTION_TEXT, e.question_key)      AS QUESTION,
+            COALESCE(o.OPTION_LABEL, e.answer_value)       AS ANSWER
+        FROM expanded e
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = e.poll_id AND q.QUESTION_KEY = e.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = e.poll_id
+            AND o.QUESTION_KEY = e.question_key
+            AND o.OPTION_VALUE = e.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
+        ORDER BY e.poll_id, e.submitted_at DESC, e.ingestion_id, e.answer_idx
+      query: |-
+        WITH raw AS (
+            SELECT
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                INGESTION_ID              AS ingestion_id,
+                SUBMITTED_AT              AS submitted_at,
+                a.index                   AS answer_idx,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                 LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id::STRING LIKE 'sf-%'
+        ),
+        expanded AS (
+            SELECT poll_id, ingestion_id, submitted_at, answer_idx, question_key,
+                   answer_variant::STRING AS answer_value
+            FROM raw WHERE answer_typeof = 'VARCHAR'
+            UNION ALL
+            SELECT raw.poll_id, raw.ingestion_id, raw.submitted_at, raw.answer_idx, raw.question_key,
+                   ia.value::STRING AS answer_value
+            FROM raw, LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+        )
+        SELECT
+            e.poll_id                                      AS POLL_ID,
+            e.ingestion_id                                 AS INGESTION_ID,
+            e.submitted_at                                 AS SUBMITTED_AT,
+            e.answer_idx                                   AS ANSWER_IDX,
+            COALESCE(q.QUESTION_TEXT, e.question_key)      AS QUESTION,
+            COALESCE(o.OPTION_LABEL, e.answer_value)       AS ANSWER
+        FROM expanded e
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = e.poll_id AND q.QUESTION_KEY = e.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = e.poll_id
+            AND o.QUESTION_KEY = e.question_key
+            AND o.OPTION_VALUE = e.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
+        ORDER BY e.poll_id, e.submitted_at DESC, e.ingestion_id, e.answer_idx
+      params: []
 - namespace: build_tally_grids
   runtime: nodejs20.x
   uses: "./build_tally_grids/entry.js"
   props:
     tally_rows: "{{steps.query_all_tallies.$return_value}}"
+    response_rows: "{{steps.query_all_responses.$return_value}}"
 - namespace: write_tallies_to_sheet
   runtime: nodejs20.x
   uses: "./write_tallies_to_sheet/entry.js"
@@ -116,4 +205,3 @@ steps:
       authProvisionId: apn_MGhwj7z
     spreadsheet_id: 1ycxK2pQPKOsQ_zoSo88Cyqih4aDHlcnvm4qRYjR7Ck4
     grids: "{{steps.build_tally_grids.$return_value.grids}}"
-
