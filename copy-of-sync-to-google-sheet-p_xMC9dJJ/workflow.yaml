@@ -1,6 +1,5 @@
 schema: workflow/2022.04
 name: Surveyfast Sync to Google Sheet
-inactive: true
 settings:
   error_notification: true
 triggers:
@@ -206,3 +205,4 @@ steps:
       authProvisionId: apn_MGhwj7z
     spreadsheet_id: 1ycxK2pQPKOsQ_zoSo88Cyqih4aDHlcnvm4qRYjR7Ck4
     grids: "{{steps.build_tally_grids.$return_value.grids}}"
+
