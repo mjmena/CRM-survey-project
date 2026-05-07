@@ -43,7 +43,7 @@ export default defineComponent({
     for (const [pollId, survey] of Object.entries(surveys)) {
       const grid = [];
       grid.push([pollId]);
-      grid.push([`Total Responses: ${survey.totalResponses}`, `Last Updated: ${now} ET`]);
+      grid.push(["Total Responses:", survey.totalResponses, `Last Updated: ${now} ET`]);
       grid.push([]);
 
       // Group by question
