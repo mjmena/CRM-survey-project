@@ -1,6 +1,5 @@
 schema: workflow/2022.04
 name: Surveyfast Sync to Google Sheet
-inactive: true
 settings:
   error_notification: true
 triggers:
