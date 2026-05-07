@@ -1,0 +1,120 @@
+schema: workflow/2022.04
+name: Surveyfast Sync to Google Sheet
+inactive: true
+settings:
+  error_notification: true
+triggers:
+- id: ti_nNTYl2G
+steps:
+- namespace: query_all_tallies
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        WITH raw AS (
+            SELECT
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                 LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id IS NOT NULL
+        ),
+        tally AS (
+            SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw
+            WHERE answer_typeof = 'VARCHAR'
+            GROUP BY 1, 2, 3
+            UNION ALL
+            SELECT raw.poll_id, raw.question_key, ia.value::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw,
+                 LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+            GROUP BY 1, 2, 3
+        ),
+        totals AS (
+            SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            WHERE RAW_DATA:poll_id IS NOT NULL
+            GROUP BY RAW_DATA:poll_id::STRING
+        )
+        SELECT
+            t.poll_id                                      AS POLL_ID,
+            t.total_responses                              AS TOTAL_RESPONSES,
+            COALESCE(q.QUESTION_TEXT, tally.question_key)  AS QUESTION,
+            COALESCE(o.OPTION_LABEL, tally.answer_value)   AS ANSWER,
+            tally.response_count                           AS RESPONSE_COUNT
+        FROM tally
+        JOIN totals t ON tally.poll_id = t.poll_id
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = tally.poll_id
+            AND o.QUESTION_KEY = tally.question_key
+            AND o.OPTION_VALUE = tally.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
+        ORDER BY t.poll_id, tally.question_key, tally.response_count DESC
+      query: |-
+        WITH raw AS (
+            SELECT
+                RAW_DATA:poll_id::STRING  AS poll_id,
+                a.value:question::STRING  AS question_key,
+                a.value:answer            AS answer_variant,
+                TYPEOF(a.value:answer)    AS answer_typeof
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                 LATERAL FLATTEN(input => RAW_DATA:answers) a
+            WHERE RAW_DATA:poll_id IS NOT NULL
+        ),
+        tally AS (
+            SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw
+            WHERE answer_typeof = 'VARCHAR'
+            GROUP BY 1, 2, 3
+            UNION ALL
+            SELECT raw.poll_id, raw.question_key, ia.value::STRING AS answer_value, COUNT(*) AS response_count
+            FROM raw,
+                 LATERAL FLATTEN(input => raw.answer_variant) ia
+            WHERE raw.answer_typeof = 'ARRAY'
+            GROUP BY 1, 2, 3
+        ),
+        totals AS (
+            SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
+            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            WHERE RAW_DATA:poll_id IS NOT NULL
+            GROUP BY RAW_DATA:poll_id::STRING
+        )
+        SELECT
+            t.poll_id                                      AS POLL_ID,
+            t.total_responses                              AS TOTAL_RESPONSES,
+            COALESCE(q.QUESTION_TEXT, tally.question_key)  AS QUESTION,
+            COALESCE(o.OPTION_LABEL, tally.answer_value)   AS ANSWER,
+            tally.response_count                           AS RESPONSE_COUNT
+        FROM tally
+        JOIN totals t ON tally.poll_id = t.poll_id
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
+        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            ON o.POLL_ID = tally.poll_id
+            AND o.QUESTION_KEY = tally.question_key
+            AND o.OPTION_VALUE = tally.answer_value
+            AND o.OPTION_SOURCE = 'catalog'
+        ORDER BY t.poll_id, tally.question_key, tally.response_count DESC
+      params: []
+- namespace: build_tally_grids
+  runtime: nodejs20.x
+  uses: "./build_tally_grids/entry.js"
+  props:
+    tally_rows: "{{steps.query_all_tallies.$return_value}}"
+- namespace: write_tallies_to_sheet
+  runtime: nodejs20.x
+  uses: "./write_tallies_to_sheet/entry.js"
+  props:
+    google_sheets:
+      authProvisionId: apn_MGhwj7z
+    spreadsheet_id: 19pUJyXDsmDRjZSRaMxpAdLj1ZxVZqA5ByAjsJF2GFxM
+    grids: "{{steps.build_tally_grids.$return_value.grids}}"
+
