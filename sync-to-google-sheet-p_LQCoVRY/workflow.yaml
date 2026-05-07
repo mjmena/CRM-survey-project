@@ -24,7 +24,7 @@ steps:
                 TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
-            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
+            WHERE RAW_DATA:poll_id IS NOT NULL
         ),
         tally AS (
             SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
@@ -41,7 +41,7 @@ steps:
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
+            WHERE RAW_DATA:poll_id IS NOT NULL
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
@@ -69,7 +69,7 @@ steps:
                 TYPEOF(a.value:answer)    AS answer_typeof
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
-            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
+            WHERE RAW_DATA:poll_id IS NOT NULL
         ),
         tally AS (
             SELECT poll_id, question_key, answer_variant::STRING AS answer_value, COUNT(*) AS response_count
@@ -86,7 +86,7 @@ steps:
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
             FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
-            WHERE RAW_DATA:poll_id::STRING = 'crm-politics-undecided-voters-poll'
+            WHERE RAW_DATA:poll_id IS NOT NULL
             GROUP BY RAW_DATA:poll_id::STRING
         )
         SELECT
