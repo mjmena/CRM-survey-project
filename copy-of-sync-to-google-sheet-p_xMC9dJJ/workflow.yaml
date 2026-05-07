@@ -2,6 +2,8 @@ schema: workflow/2022.04
 name: Surveyfast Sync to Google Sheet
 settings:
   error_notification: true
+  lambda_memory: 1024
+  lambda_timeout: 300
 triggers:
 - id: ti_nNTYl2G
 steps:
