@@ -1,0 +1,656 @@
+<!--
+  Landing-page version of poll-iam.html.
+
+  Differences from poll-iam.html:
+  - Inline layout (no modal/screen wrapper, no fixed positioning, no 100dvh).
+  - Multi-instance safe: every CSS rule, DOM query, event listener, and theme
+    variable is scoped to a per-instance wrapper id'd by `poll.id`. Two of these
+    blocks on the same page do not interfere.
+  - No close button, no dismiss handlers, no Escape key — there's nothing to
+    close on a landing page.
+  - Variant lookup falls through `poll_variant` first so the page can set that
+    variable to a catalog id (via a Liquid assign) before each content-block include.
+
+  Multi-instance efficiency:
+  - The shared <style> + factory <script> are gated behind a Liquid guard so
+    they only emit on the first include of this content block per page. Each
+    additional include only emits ~500 bytes (wrapper + init call).
+  - A JS guard (`if (!window.PrismPoll)`) is a belt-and-suspenders backstop
+    in case the Liquid guard doesn't survive a particular include path.
+
+  Schema (the JSON in `definition`, `intro_html`, `outro_html`) is identical to
+  poll-iam.html — see poll-iam.md for the authoring spec.
+-->
+
+{% assign variant = poll_variant %}
+{% catalog_items crm_prism_surveys {{variant}} :rerender %}
+
+{% assign poll = items[0] %}
+{% assign pp_id = poll.id | replace: '_', '-' | replace: '.', '-' %}
+
+{% unless prism_poll_shared_loaded %}
+{% assign prism_poll_shared_loaded = true %}
+<style>
+  /* Insights Hub palette — defaults match the Hub's .survey-card design system.
+     The widget renders blended into the white card (no chrome of its own). */
+  .prism-poll {
+    --bg1: #fff;
+    --bg2: #fff;
+    --card: #fff;
+    --border: #d0dae7;
+    --text: #0f1521;
+    --muted: #4b5972;
+    --a1: #005EB8;
+    --r: 12px;
+
+    font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+  .prism-poll *, .prism-poll *::before, .prism-poll *::after { box-sizing: border-box; }
+
+  .prism-poll .pp-content { padding: 0; }
+  .prism-poll .pp-title { margin: 0 0 6px; font-size: 18px; letter-spacing: 0.2px; }
+  .prism-poll .pp-sub { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+  .prism-poll .pp-progress { display: flex; gap: 4px; margin-top: 12px; }
+  .prism-poll .pp-bar { flex: 1; height: 6px; border-radius: 4px; background: rgba(15, 23, 42, 0.08); overflow: hidden; }
+  .prism-poll .pp-bar i { display: block; height: 100%; width: 0; background: var(--a1); transition: width 0.4s ease; }
+
+  .prism-poll .pp-card { margin-top: 4px; padding: 0; border: none; background: transparent; box-shadow: none; }
+  .prism-poll .pp-q { margin: 0 0 6px; font-size: 15px; line-height: 1.35; font-weight: 600; }
+  .prism-poll .pp-help { margin: 0 0 10px; color: var(--muted); font-size: 12.5px; }
+
+  .prism-poll .pp-opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; transition: 0.2s; margin-top: 8px; }
+  .prism-poll .pp-opt:hover { background: rgba(0, 94, 184, 0.05); border-color: rgba(0, 94, 184, 0.28); }
+  .prism-poll .pp-opt input { margin-top: 2px; }
+  .prism-poll .pp-opt strong { display: block; font-weight: 650; font-size: 13.5px; }
+  .prism-poll .pp-opt span { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+  .prism-poll .pp-opt.pp-selected { background: rgba(0, 94, 184, 0.08); border-color: var(--a1); }
+
+  .prism-poll .pp-opt-indicator { width: 10px; height: 10px; border-radius: 50%; background: var(--a1); flex-shrink: 0; margin-top: 4px; opacity: 0; transition: opacity 0.2s; }
+  .prism-poll .pp-opt.pp-selected .pp-opt-indicator { opacity: 1; }
+
+  @keyframes pp-opt-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .prism-poll .pp-opt.pp-anim-spin.pp-selected .pp-opt-indicator { animation: pp-opt-spin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  @keyframes pp-opt-pulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .prism-poll .pp-opt.pp-anim-pulse.pp-selected { animation: pp-opt-pulse 0.3s ease; }
+
+  .prism-poll .pp-text-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
+  .prism-poll .pp-text-input:focus { outline: none; border-color: var(--a1); }
+  .prism-poll .pp-char-count { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
+
+  .prism-poll .pp-write-in-input { width: 100%; margin-top: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 13px; }
+  .prism-poll .pp-write-in-input:focus { outline: none; border-color: var(--a1); }
+
+  .prism-poll .pp-nav { display: flex; gap: 10px; margin-top: 14px; }
+  .prism-poll .pp-btn { border-radius: 8px; padding: 12px; font: 700 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
+  .prism-poll .pp-btn:hover { background: rgba(15, 23, 42, 0.06); }
+  .prism-poll .pp-btn.pp-primary { background: var(--a1); color: #fff; border-color: rgba(15, 23, 42, 0.1); }
+  .prism-poll .pp-btn.pp-primary:hover { filter: brightness(0.92); }
+  .prism-poll .pp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .prism-poll .pp-item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.86); margin-top: 8px; }
+  .prism-poll .pp-item b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .prism-poll .pp-summary-bar { height: 6px; background: rgba(15, 23, 42, 0.05); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .prism-poll .pp-summary-bar-fill { height: 100%; background: var(--a1); border-radius: 99px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; }
+</style>
+
+<script>
+if (!window.PrismPoll) {
+  window.PrismPoll = (function () {
+    const SUBMIT_URL = 'https://eo9ujqadjkl294i.m.pipedream.net';
+    // This widget renders INSIDE a white Insights Hub card. Honoring container
+    // vars (bg1/bg2/card/border) would repaint a box inside the card and break
+    // the blend; honoring text/muted risks unreadable copy on white. So the Hub
+    // widget honors ONLY accent (plus option_style, applied separately below).
+    // The IAM widget (poll-iam.html) still honors the full theme set.
+    const THEME_VARS = { accent: '--a1' };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function init(opts) {
+      const ROOT = document.getElementById(opts.rootId);
+      if (!ROOT || ROOT.dataset.ppInitialized) return;
+      ROOT.dataset.ppInitialized = '1';
+
+      const VARIANT = opts.variant;
+      const POLL_ID = opts.pollId;
+      const DEVICE_ID = opts.deviceId || '';
+      const MARKET_NAME = opts.marketName || '';
+      // externalId is read at submit time so a page can hash/resolve it
+      // asynchronously after the content block has already initialized.
+      function getExternalId() {
+        return typeof opts.externalId === 'function'
+          ? (opts.externalId() || '')
+          : (opts.externalId || '');
+      }
+
+      const SURVEY = (function () {
+        const tmpl = ROOT.querySelector('[data-pp-definition]');
+        const raw = (tmpl && tmpl.textContent || '').trim();
+        if (!raw) {
+          console.error('[poll-landing] Survey definition is empty for variant "' + VARIANT + '" — catalog lookup likely missed.');
+          return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+        }
+        try {
+          let parsed = JSON.parse(raw);
+          if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+          return parsed;
+        } catch (e) {
+          console.error('[poll-landing] JSON.parse failed on survey definition.', e.message);
+          return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
+        }
+      })();
+
+      const THEME = SURVEY.theme || {};
+      // Scope theme overrides to ROOT — not document.documentElement — so two
+      // instances with different themes coexist on the same page.
+      Object.entries(THEME_VARS).forEach(([key, cssVar]) => { if (THEME[key]) ROOT.style.setProperty(cssVar, THEME[key]); });
+      const OPT_ANIM_CLASS = ['spin', 'pulse'].includes(THEME.option_style) ? 'pp-anim-' + THEME.option_style : '';
+
+      // Bubbles up so a page wrapping multiple instances can update card chrome
+      // (e.g. fill in a card title from the parsed definition) using a single
+      // document-level listener. Deferred past parse-time because page-level
+      // listeners are typically registered AFTER the inline script that calls
+      // init() — firing synchronously here would dispatch into the void.
+      function fireReady() {
+        ROOT.dispatchEvent(new CustomEvent('prism-poll-ready', {
+          bubbles: true,
+          detail: { pollId: POLL_ID, variant: VARIANT, title: SURVEY.title || '' }
+        }));
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fireReady, { once: true });
+      } else {
+        setTimeout(fireReady, 0);
+      }
+
+      const state = {
+        step: 'page',
+        pageIndex: 0,
+        answers: {},
+        writeIns: {},
+        results: [],
+        autoAdvanceTimer: null,
+        pagesLogged: new Set(),
+      };
+
+      function evalUserPredicate(p) { return true; }
+
+      function evalAnswerPredicate(p) {
+        if (!p) return true;
+        const ans = state.answers[p.question];
+        switch (p.op) {
+          case 'equals':         return ans === p.values;
+          case 'in':             return Array.isArray(p.values) && p.values.includes(ans);
+          case 'not_in':         return Array.isArray(p.values) && !p.values.includes(ans);
+          case 'is_set':         return ans !== undefined && ans !== null && ans !== '';
+          case 'array_contains': return Array.isArray(ans) && p.values.some(v => ans.includes(v));
+          default: return true;
+        }
+      }
+
+      function isPageVisible(page) {
+        if (page.show_if_user && !evalUserPredicate(page.show_if_user)) return false;
+        if (page.show_if_answer && !evalAnswerPredicate(page.show_if_answer)) return false;
+        return true;
+      }
+
+      function visibleQuestions() {
+        const page = SURVEY.pages[state.pageIndex];
+        if (!page || !page.groups) return [];
+        return page.groups.flatMap(g => g.questions).filter(qk => {
+          const q = SURVEY.questions[qk];
+          if (!q) return false;
+          if (q.show_if_user && !evalUserPredicate(q.show_if_user)) return false;
+          if (q.show_if_answer && !evalAnswerPredicate(q.show_if_answer)) return false;
+          return true;
+        });
+      }
+
+      function canAdvance() {
+        return visibleQuestions().every(qk => {
+          const q = SURVEY.questions[qk];
+          if (!q.required) return true;
+          const ans = state.answers[qk];
+
+          if (q.type === 'multi') {
+            if (!Array.isArray(ans) || ans.length === 0) return false;
+            const catchAllSelected = ans.some(v => (q.options || []).find(o => o.value === v && o.is_catch_all));
+            if (!catchAllSelected && ans.length < (q.min_select || 1)) return false;
+          } else {
+            if (ans === undefined || ans === null || ans === '') return false;
+          }
+
+          const writeInOpt = (q.options || []).find(o => o.write_in);
+          if (writeInOpt) {
+            const writeInSelected = q.type === 'multi'
+              ? Array.isArray(ans) && ans.includes(writeInOpt.value)
+              : ans === writeInOpt.value;
+            if (writeInSelected && !state.writeIns[qk]?.trim()) return false;
+          }
+
+          return true;
+        });
+      }
+
+      function clearHiddenAnswers() {
+        SURVEY.pages.forEach(page => {
+          const pageVisible = isPageVisible(page);
+          (page.groups || []).forEach(g => {
+            g.questions.forEach(qk => {
+              const q = SURVEY.questions[qk];
+              const visible = pageVisible && (!q || !q.show_if_answer || evalAnswerPredicate(q.show_if_answer));
+              if (!visible) {
+                delete state.answers[qk];
+                delete state.writeIns[qk];
+              }
+            });
+          });
+        });
+      }
+
+      function isLastVisiblePage() {
+        for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
+          if (isPageVisible(SURVEY.pages[i])) return false;
+        }
+        return true;
+      }
+
+      function renderQuestion(qk) {
+        const q = SURVEY.questions[qk];
+        const ans = state.answers[qk];
+        let body = '';
+
+        if (q.type === 'single') {
+          body = q.options.map(opt => {
+            const isSelected = ans === opt.value;
+            const writeInHtml = opt.write_in && isSelected
+              ? `<input type="text" class="pp-write-in-input" data-q="${esc(qk)}" data-action="write-in"
+                        placeholder="${esc(opt.write_in_placeholder || '')}"
+                        value="${esc(state.writeIns[qk] || '')}">`
+              : '';
+            return `
+              <label class="pp-opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' pp-selected' : ''}">
+                ${OPT_ANIM_CLASS ? '<div class="pp-opt-indicator"></div>' : ''}
+                <input type="radio" name="${esc(qk)}" value="${esc(opt.value)}"
+                       data-q="${esc(qk)}" data-action="single"
+                       ${isSelected ? 'checked' : ''}>
+                <div>
+                  <strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>
+                  ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+                  ${writeInHtml}
+                </div>
+              </label>`;
+          }).join('');
+
+        } else if (q.type === 'multi') {
+          const selected = new Set(ans || []);
+          body = q.options.map(opt => {
+            const isSelected = selected.has(opt.value);
+            const writeInHtml = opt.write_in && isSelected
+              ? `<input type="text" class="pp-write-in-input" data-q="${esc(qk)}" data-action="write-in"
+                        placeholder="${esc(opt.write_in_placeholder || '')}"
+                        value="${esc(state.writeIns[qk] || '')}">`
+              : '';
+            return `
+              <label class="pp-opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' pp-selected' : ''}">
+                ${OPT_ANIM_CLASS ? '<div class="pp-opt-indicator"></div>' : ''}
+                <input type="checkbox" value="${esc(opt.value)}"
+                       data-q="${esc(qk)}" data-action="multi"
+                       ${isSelected ? 'checked' : ''}>
+                <div>
+                  <strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>
+                  ${opt.description ? `<span>${esc(opt.description)}</span>` : ''}
+                  ${writeInHtml}
+                </div>
+              </label>`;
+          }).join('');
+
+        } else if (q.type === 'text') {
+          const max = q.max_length || 500;
+          const len = (ans || '').length;
+          body = `
+            <textarea class="pp-text-input" data-q="${esc(qk)}" data-action="text"
+                      maxlength="${max}"
+                      placeholder="${esc(q.placeholder || '')}">${esc(ans || '')}</textarea>
+            <div class="pp-char-count">
+              <span data-char-count="${esc(qk)}">${len}</span> / ${max}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="pp-card">
+            <p class="pp-q">${esc(q.question)}</p>
+            ${q.help_text ? `<p class="pp-help">${esc(q.help_text)}</p>` : ''}
+            ${body}
+          </div>
+        `;
+      }
+
+      function templateHtml(attr) {
+        const el = ROOT.querySelector('[' + attr + ']');
+        return el ? el.textContent : '';
+      }
+
+      const DEFAULT_INTRO = `
+        <h3 class="pp-title">${esc(SURVEY.title || '')}</h3>
+        <p class="pp-sub">Your responses help us understand what readers are thinking.</p>
+      `;
+      const DEFAULT_OUTRO = `
+        <h3 class="pp-title">Thanks!</h3>
+        <p class="pp-sub">Here's how your answers compare to other readers.</p>
+        <div data-results-slot></div>
+      `;
+
+      function renderPageView() {
+        const page = SURVEY.pages[state.pageIndex] || {};
+
+        const header = state.pageIndex === 0
+          ? (templateHtml('data-pp-intro') || DEFAULT_INTRO)
+          : (page.title ? `<h3 class="pp-title">${esc(page.title)}</h3>` : '');
+
+        const progress = SURVEY.pages.length > 1 ? `
+          <div class="pp-progress">
+            ${SURVEY.pages.map((_, i) => `
+              <div class="pp-bar"><i style="width: ${i < state.pageIndex ? 100 : i === state.pageIndex ? 50 : 0}%"></i></div>
+            `).join('')}
+          </div>
+        ` : '';
+
+        const questions = visibleQuestions().map(renderQuestion).join('');
+        const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
+        const nav = `
+          <div class="pp-nav">
+            ${state.pageIndex > 0 ? '<button class="pp-btn" data-action="prev">Back</button>' : ''}
+            <button class="pp-btn pp-primary" data-action="next" ${canAdvance() ? '' : 'disabled'}>
+              ${nextLabel}
+            </button>
+          </div>
+        `;
+
+        return `
+          ${header}
+          ${progress}
+          ${questions}
+          ${nav}
+        `;
+      }
+
+      function renderDoneView() {
+        const grouped = [];
+        const seen = new Map();
+        for (const r of state.results) {
+          if (!seen.has(r.qk)) {
+            const group = { questionText: r.questionText, qk: r.qk, answers: [] };
+            seen.set(r.qk, group);
+            grouped.push(group);
+          }
+          seen.get(r.qk).answers.push(r);
+        }
+
+        const items = grouped.map(g => `
+          <div class="pp-item">
+            <b>${esc(g.questionText)}</b>
+            ${g.answers.map(r => `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <span style="font-size:12.5px; font-weight:600;">${r.text}</span>
+                ${r.percentage != null ? `<span style="font-weight:bold; color:var(--a1)">${r.percentage}%</span>` : ''}
+              </div>
+              ${r.percentage != null ? `<div class="pp-summary-bar"><div class="pp-summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width: 0%"></div></div>` : ''}
+            `).join('')}
+          </div>
+        `).join('');
+
+        const html = templateHtml('data-pp-outro') || DEFAULT_OUTRO;
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        const slot = wrapper.querySelector('[data-results-slot]');
+        if (slot) slot.innerHTML = items;
+        else wrapper.insertAdjacentHTML('beforeend', items);
+        return wrapper.innerHTML;
+      }
+
+      function render() {
+        const content = ROOT.querySelector('[data-pp-content]');
+        content.innerHTML = state.step === 'page' ? renderPageView() : renderDoneView();
+      }
+
+      function setSingleAnswer(qk, value) {
+        state.answers[qk] = value;
+        clearHiddenAnswers();
+        render();
+        const q = SURVEY.questions[qk];
+        if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) {
+          clearTimeout(state.autoAdvanceTimer);
+          state.autoAdvanceTimer = setTimeout(nextPage, 350);
+        }
+      }
+
+      function toggleMulti(qk, value) {
+        const arr = [...(state.answers[qk] || [])];
+        const i = arr.indexOf(value);
+        if (i === -1) arr.push(value); else arr.splice(i, 1);
+        state.answers[qk] = arr;
+        clearHiddenAnswers();
+        render();
+      }
+
+      function setTextAnswer(qk, value) {
+        state.answers[qk] = value;
+        const counter = ROOT.querySelector(`[data-char-count="${CSS.escape(qk)}"]`);
+        if (counter) counter.textContent = value.length;
+        const nextBtn = ROOT.querySelector('[data-action="next"]');
+        if (nextBtn) nextBtn.disabled = !canAdvance();
+      }
+
+      function setWriteInAnswer(qk, value) {
+        state.writeIns[qk] = value;
+        const nextBtn = ROOT.querySelector('[data-action="next"]');
+        if (nextBtn) nextBtn.disabled = !canAdvance();
+      }
+
+      function prevPage() {
+        for (let i = state.pageIndex - 1; i >= 0; i--) {
+          if (isPageVisible(SURVEY.pages[i])) {
+            state.pageIndex = i;
+            render();
+            return;
+          }
+        }
+      }
+
+      function nextPage() {
+        if (!state.pagesLogged.has(state.pageIndex)) {
+          state.pagesLogged.add(state.pageIndex);
+          if (window.brazeBridge?.logClick) {
+            window.brazeBridge.logClick('Q' + (state.pageIndex + 1));
+          }
+        }
+        for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) {
+          if (isPageVisible(SURVEY.pages[i])) {
+            state.pageIndex = i;
+            render();
+            return;
+          }
+        }
+        submit();
+      }
+
+      async function submit() {
+        if (window.brazeBridge) {
+          if (window.brazeBridge.addToUserProperty) {
+            window.brazeBridge.addToUserProperty('crm_surveys_completed', POLL_ID);
+          }
+          if (window.brazeBridge.logClick) {
+            window.brazeBridge.logClick('Submit');
+          }
+        }
+
+        const payload = {
+          poll_id: POLL_ID,
+          device_id: DEVICE_ID,
+          external_id: getExternalId(),
+          market_name: MARKET_NAME,
+          variant: VARIANT,
+          submitted_at: new Date().toISOString(),
+          answers: Object.entries(state.answers)
+            .filter(([qk]) => {
+              if (!SURVEY.questions[qk]) return false;
+              const page = SURVEY.pages.find(p => (p.groups || []).some(g => g.questions.includes(qk)));
+              if (!page || !isPageVisible(page)) return false;
+              const q = SURVEY.questions[qk];
+              return !q.show_if_answer || evalAnswerPredicate(q.show_if_answer);
+            })
+            .map(([question, answer]) => {
+              const q = SURVEY.questions[question];
+              const writeInOpt = (q.options || []).find(o => o.write_in);
+              if (writeInOpt && q.type === 'single' && answer === writeInOpt.value) {
+                return { question, answer: state.writeIns[question] || answer, type: q.type, write_in: true };
+              }
+              if (writeInOpt && q.type === 'multi' && Array.isArray(answer) && answer.includes(writeInOpt.value)) {
+                const rest = answer.filter(v => v !== writeInOpt.value);
+                const text = state.writeIns[question];
+                return { question, answer: text ? [...rest, text] : rest, type: q.type, write_in: true };
+              }
+              return { question, answer, type: q.type };
+            })
+        };
+
+        let stats = {};
+        try {
+          const resp = await fetch(SUBMIT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await resp.json();
+          stats = (data && data.$response && data.$response.body) || data || {};
+        } catch (e) {}
+
+        state.results = buildResults(stats);
+        state.step = 'done';
+        render();
+
+        setTimeout(() => {
+          state.results.forEach(r => {
+            if (r.percentage == null) return;
+            const bar = ROOT.querySelector(`[data-bar="${CSS.escape(r.qk + '|' + r.value)}"]`);
+            if (bar) bar.style.width = r.percentage + '%';
+          });
+        }, 50);
+
+        ROOT.dispatchEvent(new CustomEvent('prism-poll-submitted', {
+          bubbles: true,
+          detail: { pollId: POLL_ID, variant: VARIANT, answers: payload.answers }
+        }));
+      }
+
+      function buildResults(stats) {
+        return Object.entries(state.answers).flatMap(([qk, ans]) => {
+          const q = SURVEY.questions[qk];
+          if (!q) return [];
+          const qStats = (stats && stats[qk]) || [];
+
+          if (q.type === 'text') {
+            return [{ qk, value: ans, questionText: q.question, text: ans, percentage: null }];
+          }
+
+          const values = Array.isArray(ans) ? ans : [ans];
+          return values.map(v => {
+            const labelOpt = (q.options || []).find(o => o.value === v);
+            if (labelOpt && labelOpt.write_in) {
+              const text = state.writeIns[qk] || v;
+              return { qk, value: text, questionText: q.question, text, percentage: null };
+            }
+            const match = labelOpt && qStats.find(s => s.label === v);
+            return {
+              qk, value: v,
+              questionText: q.question,
+              text: (labelOpt && labelOpt.label) || v,
+              percentage: (!labelOpt || q.show_results === false) ? null : (match ? match.percentage : 0)
+            };
+          });
+        });
+      }
+
+      // Listeners attached to ROOT, not document.body — two instances on one
+      // page would otherwise both fire on every click.
+      ROOT.addEventListener('click', e => {
+        const target = e.target.closest('[data-action]');
+        if (!target || !ROOT.contains(target)) return;
+        const action = target.dataset.action;
+        if (action === 'prev') prevPage();
+        else if (action === 'next') nextPage();
+      });
+
+      ROOT.addEventListener('change', e => {
+        const el = e.target;
+        if (!el.dataset || !el.dataset.action) return;
+        if (el.dataset.action === 'single') setSingleAnswer(el.dataset.q, el.value);
+        else if (el.dataset.action === 'multi') toggleMulti(el.dataset.q, el.value);
+      });
+
+      ROOT.addEventListener('input', e => {
+        const el = e.target;
+        if (!el.dataset || !el.dataset.action) return;
+        if (el.dataset.action === 'text') setTextAnswer(el.dataset.q, el.value);
+        else if (el.dataset.action === 'write-in') setWriteInAnswer(el.dataset.q, el.value);
+      });
+
+      render();
+    }
+
+    return { init };
+  })();
+}
+</script>
+{% endunless %}
+
+<div class="prism-poll" id="prism-poll-{{pp_id}}" role="region" aria-label="Survey">
+  <div class="pp-content" data-pp-content></div>
+
+  <!-- Catalog-driven payloads, kept inert; :rerender on the catalog_items tag
+       above evaluates Liquid inside these fields server-side. -->
+  <script type="application/json" data-pp-definition>{{ poll.definition }}</script>
+  <script type="text/html" data-pp-intro>{{ poll.intro_html }}</script>
+  <script type="text/html" data-pp-outro>{{ poll.outro_html }}</script>
+</div>
+<script>
+  window.PrismPoll.init({
+    rootId: 'prism-poll-{{pp_id}}',
+    variant: '{{ variant }}',
+    pollId: '{{ poll.id }}',
+    deviceId: '{{targeted_device.${id}}}',
+    // Resolved at submit time so a landing-page resolver (e.g. a SHA-256 of
+    // a confirmed email) can override the IAM-style user_id token (the one in
+    // the externalId fallback below), which is empty on landing pages.
+    externalId: function () {
+      var resolver = window.__pp_external_id_resolver;
+      var resolved = (typeof resolver === 'function') ? resolver() : '';
+      return resolved || '{{${user_id}}}';
+    },
+    marketName: '{{event_properties.${market_name}}}'
+  });
+</script>

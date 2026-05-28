@@ -52,7 +52,7 @@ Option values are taxonomy-joined downstream — consistency is critical. Before
 Walk these steps in order. Do not skip steps.
 
 ### 1. Gather the brief
-Ask the user for: topic, question text(s), question type(s) (`single` / `multi` / `text`), and answer options. Clarify anything ambiguous before proceeding.
+Ask the user for: topic, question text(s), question type(s) (`single` / `multi` / `text`), and answer options. Also ask for two optional Insights Hub card fields: a one-line `description` (card blurb) and an `est_time` chip (free text, e.g. `Under 1 min`). Clarify anything ambiguous before proceeding.
 
 ### 2. Check existing conventions
 Call `mcp__crm-prism__get_survey_catalog` and scan for option values relevant to this topic. Note exact strings to reuse.
@@ -154,6 +154,9 @@ Then below the artifact:
    - `definition`: the definition object (stringification is handled by the server)
    - `intro_html`: the intro HTML string
    - `outro_html`: the outro HTML string
+   - `description` *(optional)*: one-line Insights Hub card blurb
+   - `est_time` *(optional)*: card time chip, e.g. `Under 1 min`
+   - Do **not** pass `title` — the server auto-derives the card title from `definition.title`.
 2. Call `mcp__crm-prism__duplicate_campaign` with `name` equal to the poll id.
 3. Report both results to the user.
 4. After reporting results, always remind the user of these two required manual steps:
@@ -199,7 +202,7 @@ Follow the diff with an interactive HTML preview of the new state (same format a
 
 ### 4. On approval, execute
 
-Call `mcp__crm-prism__update_poll` with `poll_id` and only the fields that changed. Pass `definition` as an object — stringification is handled by the server. Do **not** call `duplicate_campaign` for updates.
+Call `mcp__crm-prism__update_poll` with `poll_id` and only the fields that changed. Pass `definition` as an object — stringification is handled by the server. You can also patch `description` and `est_time` (Insights Hub card fields) independently. The card `title` re-mirrors from `definition.title` **only** when you pass a new `definition`, so a description/est_time-only update never disturbs the title. Do **not** call `duplicate_campaign` for updates.
 
 ---
 
