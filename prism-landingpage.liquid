@@ -332,7 +332,7 @@
          PAGE BODY
          ============================================================ */
       .page-intro {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 36px auto 0;
         padding: 0 20px;
       }
@@ -361,7 +361,7 @@
       }
 
       .email-notice {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 16px auto 0;
         padding: 0 20px;
       }
@@ -380,7 +380,7 @@
          SECTION LABELS — shared base + variant modifiers
          ============================================================ */
       .section-label {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 44px auto 0;
         padding: 0 20px;
       }
@@ -427,7 +427,7 @@
       }
 
       .section-desc {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 6px auto 0;
         padding: 0 20px;
         font-size: 0.82rem;
@@ -439,7 +439,7 @@
          EMPTY / COMING SOON STATE
          ============================================================ */
       .section-empty {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 14px auto 0;
         padding: 0 20px;
       }
@@ -467,12 +467,16 @@
          ============================================================ */
       .survey-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: 1fr; /* mobile: 1-up. Counts step up at the breakpoints below. */
         gap: 12px;
-        max-width: 900px;
+        max-width: 1200px;
         margin: 14px auto 0;
         padding: 0 20px;
+        align-items: start; /* cards top-align so rows stay even and the accordion anchors cleanly */
       }
+      @media (min-width: 600px)  { .survey-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (min-width: 900px)  { .survey-grid { grid-template-columns: repeat(3, 1fr); } }
+      @media (min-width: 1200px) { .survey-grid { grid-template-columns: repeat(4, 1fr); } }
       .survey-grid--last {
         padding-bottom: 60px;
       }
@@ -632,6 +636,15 @@
         border-color: #9a7009;
       }
 
+      /* Survey links are gated on email — locked look until confirmed */
+      .survey-card--external .survey-card__btn.is-locked,
+      .survey-card--external .survey-card__btn.is-locked:hover {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: var(--c-gold);
+        border-color: var(--c-gold);
+      }
+
       .survey-card__btn.is-completed {
         background: var(--c-wht);
         color: var(--c-600);
@@ -643,7 +656,6 @@
          POLL EMBED PANEL (Quick Polls only)
          ============================================================ */
       .survey-card.is-open {
-        grid-column: 1 / -1;
         border-color: var(--c-accent);
         box-shadow: 0 0 0 3px rgba(0,94,184,0.15), var(--shadow);
       }
@@ -654,7 +666,34 @@
         flex-direction: column;
         gap: 16px;
       }
-      .survey-card.is-open .survey-card__embed { display: flex; }
+
+      /* Accordion: the active poll's embed is relocated into this full-width
+         panel, which opens below the clicked card's row. The poll inside is
+         capped + centered so it reads well instead of stretching edge-to-edge. */
+      .survey-accordion {
+        grid-column: 1 / -1;
+        margin-top: 4px;
+      }
+      .survey-accordion[hidden] { display: none; }
+      /* The bordered poll box is capped + centered so the survey never exceeds ~600px */
+      .survey-accordion__box {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid var(--c-accent);
+        border-radius: var(--radius);
+        box-shadow: 0 0 0 3px rgba(0,94,184,0.12), var(--shadow);
+        background: var(--color-card-bg);
+      }
+      .survey-accordion__title {
+        font-family: var(--font-sans);
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--color-text-primary);
+        margin-bottom: 14px;
+      }
+      .survey-accordion .survey-card__embed { display: flex; padding: 0; }
+      .survey-accordion .survey-card__divider { display: none; }
 
       .survey-card__divider {
         border: none;
@@ -707,7 +746,7 @@
         font-family: var(--font-sans);
         color: var(--color-text-primary);
       }
-      .footer-inner { max-width: 1100px; margin: 0 auto; padding: 32px 24px 0; }
+      .footer-inner { max-width: 1200px; margin: 0 auto; padding: 32px 24px 0; }
       .footer-brand {
         display: flex;
         align-items: center;
@@ -748,7 +787,7 @@
         flex-wrap: wrap;
         gap: 8px 16px;
         justify-content: center;
-        max-width: 1100px;
+        max-width: 1200px;
         margin: 0 auto;
       }
       .footer-legal a {
@@ -767,7 +806,7 @@
         .email-section__heading { font-size: 1rem; }
         .email-row { flex-direction: column; }
         .email-row button { width: 100%; }
-        .survey-grid { grid-template-columns: 1fr; padding: 0 14px; }
+        .survey-grid { padding: 0 14px; }
         .survey-grid--last { padding-bottom: 60px; }
         .section-label, .section-desc, .email-notice, .page-intro, .section-empty { padding: 0 14px; }
         .footer-cols { grid-template-columns: 1fr 1fr; }
@@ -1261,6 +1300,14 @@
         function disablePollButtons() {
           eachPollButton(function (btn) { btn.disabled = true; });
         }
+        function setSurveyLinksLocked(locked) {
+          // External survey links are gated on email confirmation, like polls.
+          document.querySelectorAll('.survey-card--external .survey-card__btn').forEach(function (a) {
+            a.classList.toggle('is-locked', locked);
+            a.setAttribute('aria-disabled', locked ? 'true' : 'false');
+          });
+        }
+        setSurveyLinksLocked(!confirmedEmail);
 
         function nudgeEmailConfirm() {
           emailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1318,6 +1365,7 @@
           emailConfirmed.classList.add('is-visible');
           emailNotice.style.display = 'none';
           enablePollButtons();
+          setSurveyLinksLocked(false);
           emailSection.classList.add('is-confirmed');
           syncHeaderHeight();
           refreshCompletionSoon();
@@ -1337,6 +1385,7 @@
           pageEmailBtn.textContent = 'Confirm Email';
           emailSection.classList.remove('is-confirmed');
           disablePollButtons();
+          setSurveyLinksLocked(true);
           syncHeaderHeight();
           refreshCompletionSoon();
         });
@@ -1401,45 +1450,93 @@
           } catch (e) {}
         };
 
-        /* ── Poll open/close (inline embed cards only) ── */
+        /* ── Poll accordion ──
+           The clicked card stays in the grid; its embed is moved into a
+           full-width panel inserted right after the last card in that card's
+           row, so the poll opens below the row and the card never jumps. */
+        var activePollCard = null;
+        function accordionPanelFor(grid) {
+          var p = grid.querySelector(':scope > .survey-accordion');
+          if (!p) {
+            p = document.createElement('div');
+            p.className = 'survey-accordion';
+            p.hidden = true;
+            grid.appendChild(p);
+          }
+          return p;
+        }
+        function positionPanel(card, panel, grid) {
+          var cards = Array.prototype.slice.call(grid.querySelectorAll(':scope > .survey-card'));
+          var top = card.offsetTop;
+          var rowCards = cards.filter(function (c) { return Math.abs(c.offsetTop - top) < 2; });
+          (rowCards[rowCards.length - 1] || card).after(panel);
+        }
+        function closeActivePoll() {
+          if (!activePollCard) return;
+          var card = activePollCard;
+          var grid = card.closest('.survey-grid');
+          var panel = grid && grid.querySelector(':scope > .survey-accordion');
+          if (panel) {
+            var embed = panel.querySelector('.survey-card__embed');
+            if (embed) card.appendChild(embed); // hidden again once back in the card
+            panel.hidden = true;
+          }
+          card.classList.remove('is-open');
+          var h = card.querySelector('.survey-card__header');
+          if (h) h.setAttribute('aria-expanded', 'false');
+          activePollCard = null;
+        }
+        function openPoll(card) {
+          closeActivePoll();
+          var grid = card.closest('.survey-grid');
+          if (!grid) return;
+          var panel = accordionPanelFor(grid);
+          positionPanel(card, panel, grid);
+          var embed = card.querySelector('.survey-card__embed');
+          var nameEl = card.querySelector('.survey-card__name');
+          panel.textContent = '';
+          var box = document.createElement('div');
+          box.className = 'survey-accordion__box';
+          var title = (nameEl && nameEl.textContent || '').trim();
+          if (title) {
+            var t = document.createElement('div');
+            t.className = 'survey-accordion__title';
+            t.textContent = title;
+            box.appendChild(t);
+          }
+          if (embed) box.appendChild(embed);
+          panel.appendChild(box);
+          panel.hidden = false;
+          card.classList.add('is-open');
+          var header = card.querySelector('.survey-card__header');
+          if (header) header.setAttribute('aria-expanded', 'true');
+          activePollCard = card;
+        }
         window.toggleSurvey = function (id) {
           if (!confirmedEmail) { nudgeEmailConfirm(); return; }
           var card = document.getElementById('survey-card-' + id);
           if (!card) return;
-          var isOpen = card.classList.contains('is-open');
-          // Completed polls can be collapsed but never re-opened.
-          if (!isOpen && card.classList.contains('is-completed')) return;
-          // Close all poll cards
-          document.querySelectorAll('.survey-card:not(.survey-card--external)').forEach(function (c) {
-            c.classList.remove('is-open');
-            var h = c.querySelector('.survey-card__header');
-            if (h) h.setAttribute('aria-expanded', 'false');
-          });
-          if (!isOpen) {
-            card.classList.add('is-open');
-            var header = card.querySelector('.survey-card__header');
-            if (header) header.setAttribute('aria-expanded', 'true');
-            setTimeout(function () {
-              card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 80);
-          }
+          if (card.classList.contains('is-open')) { closeActivePoll(); return; }
+          if (card.classList.contains('is-completed')) return; // can't reopen completed
+          openPoll(card);
         };
-
-        window.closeSurvey = function (id) {
-          var card = document.getElementById('survey-card-' + id);
-          if (card) {
-            card.classList.remove('is-open');
-            var h = card.querySelector('.survey-card__header');
-            if (h) h.setAttribute('aria-expanded', 'false');
-          }
-        };
+        window.closeSurvey = function () { closeActivePoll(); };
+        // If the grid reflows (column count changes), re-anchor the open panel.
+        window.addEventListener('resize', function () {
+          if (!activePollCard) return;
+          var grid = activePollCard.closest('.survey-grid');
+          var panel = grid && grid.querySelector(':scope > .survey-accordion');
+          if (panel) positionPanel(activePollCard, panel, grid);
+        });
 
         /* ── Content block event bridge ──
            Card titles now render server-side from the catalog `title` field, so
            there's no longer a prism-poll-ready listener filling them in. The
            widget still fires that event; we just don't need to react to it. */
         document.addEventListener('prism-poll-submitted', function (e) {
-          var card = e.target.closest('.survey-card');
+          // The poll lives in the accordion panel (not inside the card), so fall
+          // back to the active card when the event can't resolve one directly.
+          var card = e.target.closest('.survey-card') || activePollCard;
           if (!card) return;
           card.classList.add('is-completed');
           if (e.detail && e.detail.pollId) {

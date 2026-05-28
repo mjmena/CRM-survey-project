@@ -367,8 +367,10 @@ if (!window.PrismPoll) {
       function renderPageView() {
         const page = SURVEY.pages[state.pageIndex] || {};
 
+        // Hub: skip the intro header on page 0 — the card title + the user's
+        // explicit "Take Poll" click already frame it, so go straight to Q1.
         const header = state.pageIndex === 0
-          ? (templateHtml('data-pp-intro') || DEFAULT_INTRO)
+          ? ''
           : (page.title ? `<h3 class="pp-title">${esc(page.title)}</h3>` : '');
 
         const progress = SURVEY.pages.length > 1 ? `
@@ -426,6 +428,18 @@ if (!window.PrismPoll) {
         const html = templateHtml('data-pp-outro') || DEFAULT_OUTRO;
         const wrapper = document.createElement('div');
         wrapper.innerHTML = html;
+        // Hub: drop redundant outro chrome — the card already shows a completed
+        // state and its own close control. Strip the "Thanks!" heading + Close
+        // button; keep the results comparison and any CTA.
+        wrapper.querySelectorAll('[data-action="dismiss"]').forEach(function (b) {
+          (b.closest('.nav') || b).remove();
+        });
+        var doneHeading = wrapper.querySelector('h3');
+        if (doneHeading) {
+          var headingSub = doneHeading.nextElementSibling;
+          doneHeading.remove();
+          if (headingSub && headingSub.tagName === 'P') headingSub.remove();
+        }
         const slot = wrapper.querySelector('[data-results-slot]');
         if (slot) slot.innerHTML = items;
         else wrapper.insertAdjacentHTML('beforeend', items);
