@@ -173,3 +173,54 @@ steps:
             src.OPTION_LABEL, src.OPTION_DESCRIPTION, src.IS_CATCH_ALL, src.SORT_ORDER
         )
       params: []
+- namespace: find_unclassified
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        -- Polls that still need classification: at least one non-catch-all
+        -- single/multi catalog option with NO taxonomy row anywhere on the poll.
+        -- Mirrors skip_if_classified (already_classified = 0) and excludes
+        -- all-catch-all polls so they are not re-handed-off every sync.
+        SELECT DISTINCT o.POLL_ID
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+          ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
+        WHERE o.OPTION_SOURCE = 'catalog'
+          AND o.IS_CATCH_ALL = FALSE
+          AND q.QUESTION_TYPE IN ('single', 'multi')
+          AND NOT EXISTS (
+              SELECT 1
+              FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY tx
+              JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
+              WHERE o2.POLL_ID = o.POLL_ID
+          )
+        ORDER BY o.POLL_ID
+      query: |-
+        -- Polls that still need classification: at least one non-catch-all
+        -- single/multi catalog option with NO taxonomy row anywhere on the poll.
+        -- Mirrors skip_if_classified (already_classified = 0) and excludes
+        -- all-catch-all polls so they are not re-handed-off every sync.
+        SELECT DISTINCT o.POLL_ID
+        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+          ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
+        WHERE o.OPTION_SOURCE = 'catalog'
+          AND o.IS_CATCH_ALL = FALSE
+          AND q.QUESTION_TYPE IN ('single', 'multi')
+          AND NOT EXISTS (
+              SELECT 1
+              FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY tx
+              JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
+              WHERE o2.POLL_ID = o.POLL_ID
+          )
+        ORDER BY o.POLL_ID
+      params: []
+- namespace: trigger_classification
+  runtime: nodejs20.x
+  uses: "./trigger_classification/entry.mjs"
+  props:
+    poll_rows: "{{steps.find_unclassified.$return_value}}"
