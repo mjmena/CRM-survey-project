@@ -1,6 +1,6 @@
 export default defineComponent({
   name: "Fetch Braze Catalog",
-  description: "Fetches all items from the crm_surveys Braze catalog",
+  description: "Fetches all items from the crm_prism_surveys Braze catalog",
   props: {
     braze: {
       type: "app",
@@ -19,7 +19,7 @@ export default defineComponent({
     let cursor = null;
 
     do {
-      const url = new URL(`${baseURL}/catalogs/crm_surveys/items`);
+      const url = new URL(`${baseURL}/catalogs/crm_prism_surveys/items`);
       if (cursor) url.searchParams.set("cursor", cursor);
 
       const resp = await fetch(url.toString(), { headers });
@@ -31,7 +31,7 @@ export default defineComponent({
       cursor = data.cursor || null;
     } while (cursor);
 
-    $.export("$summary", `Fetched ${allItems.length} catalog items from crm_surveys`);
+    $.export("$summary", `Fetched ${allItems.length} catalog items from crm_prism_surveys`);
     return allItems;
   },
 });
