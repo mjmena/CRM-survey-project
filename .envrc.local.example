@@ -1,0 +1,17 @@
+# Copy to .envrc.local (gitignored) and fill in. Then run `direnv allow`.
+# These power the post-commit Confluence publish hook (see .git/hooks/post-commit)
+# and the pipedream-synced-project skill.
+
+# --- Confluence (post-commit publish hook) ---
+# Atlassian account email
+export CONFLUENCE_USER="you@mcclatchy.com"
+# API token: https://id.atlassian.com/manage-profile/security/api-tokens
+export CONFLUENCE_API_TOKEN=""
+export CONFLUENCE_SPACE_KEY="/spaces/CRMA/"
+
+# --- Pipedream REST API ---
+# Used by the pipedream-synced-project skill (curl api.pipedream.com/v1)
+# to manage synced workflows/sources without the pd CLI or a custom MCP.
+# API key: https://pipedream.com/settings/account  (org = mcclatchy)
+export PIPEDREAM_API_KEY=""
+export PIPEDREAM_ORG_ID="o_qOIvyEa"

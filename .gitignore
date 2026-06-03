@@ -1,0 +1,11 @@
+# Local-only secrets — NEVER commit (contains Confluence + Pipedream credentials)
+.envrc.local
+
+# direnv / nix
+.direnv/
+
+# Node
+node_modules/
+
+# Local Snowflake catalog export used by classify-taxonomy (may contain survey data)
+catalog.json
