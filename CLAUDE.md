@@ -23,25 +23,35 @@ Content-Type: application/json
 {"POLL_ID": "crm_some_poll_id"}
 ```
 
-The `extract_poll_id` step handles both the Snowflake new-row trigger shape (`event.POLL_ID`) and the HTTP trigger shape (`event.body.POLL_ID`).
+The `extract_poll_id` step handles both the Snowflake new-row trigger shape (`event.POLL_ID`) and the HTTP trigger shape (`event.body.POLL_ID`). Per **ADR-0001**, the fragile `snowflake-new-row` source is being retired in favor of an explicit handoff POSTed from `sync-braze-to-snowflake` — see `docs/adr/0001-classification-trigger-explicit-handoff.md`.
 
 ## Pipeline shape
 
 ```
-Braze survey catalog
-   → sync-braze-to-snowflake → DIM_SURVEY_CATALOG
-   → taxonomy-classification (Claude)  → DIM_SURVEY_TAXONOMY
+Braze crm_prism_surveys catalog
+   → sync-braze-to-snowflake → DIM_SURVEY_QUESTIONS + DIM_SURVEY_OPTIONS
+   → taxonomy-classification (Claude)  → DIM_SURVEY_TAXONOMY (keyed on OPTION_ID)
    → V_AMPLITUDE_SURVEY_SYNC (per-user rollup)
    → Amplitude user properties
    → Braze attributes (segmentation/personalization)
+
+Survey submissions feed the same rollup:
+   Braze → survey-response (ingest) → STG_SURVEY_RESPONSES
+   free-text answers → text-response-classify (Claude) → DIM_SURVEY_OPTIONS (OPTION_SOURCE='response') + DIM_SURVEY_TAXONOMY
 ```
+
+Design decisions behind the trigger and the approval gate are recorded in `docs/adr/`
+(`0001` explicit-handoff trigger, `0002` human approval gate). Domain glossary: `CONTEXT.md`.
 
 ## Workflows
 
 | Workflow | ID | Notes |
 |---|---|---|
-| **Braze → Snowflake catalog sync** | `sync-braze-to-snowflake-p_V9CgJMd` | Pulls Braze `crm_surveys` catalog, flattens questions+options, upserts `DIM_SURVEY_CATALOG` (key: `poll_id` + `question_key` + `option_value`) |
-| **Taxonomy classification** | `taxonomy-classification-p_WxCpYWv` | Polls every 15 min for new poll_ids, sends full poll context + existing taxonomy paths to Claude for consistency, merges into `DIM_SURVEY_TAXONOMY` |
+| **Braze → Snowflake catalog sync** | `sync-braze-to-snowflake-p_V9CgJMd` | Pulls Braze `crm_prism_surveys` catalog, flattens into `DIM_SURVEY_QUESTIONS` (key: `poll_id` + `question_key`) and `DIM_SURVEY_OPTIONS` (`OPTION_SOURCE='catalog'`, surrogate `OPTION_ID`) |
+| **Taxonomy classification** | `taxonomy-classification-p_WxCpYWv` | Sends full poll context + existing taxonomy paths to Claude for consistency, merges into `DIM_SURVEY_TAXONOMY` keyed on `OPTION_ID`. Triggered by HTTP POST (`hi_VOHV2Qx`) plus a legacy `snowflake-new-row` source being retired per ADR-0001 |
+| **Text response classify** | `text-response-classify-p_QPC6VBY` | Classifies free-text survey answers; writes new `DIM_SURVEY_OPTIONS` rows with `OPTION_SOURCE='response'` plus their taxonomy |
+| **Survey response ingest** | `survey-response-p_LQCoAMR` | Ingests Braze survey submission events into `STG_SURVEY_RESPONSES` |
+| **PRISM MCP connector** | `prism-mcp-p_6lCVPoa` | Remote MCP server exposing survey/taxonomy tools (e.g. `get_taxonomy`) to Claude; the future surfacing/approval surface (ADR-0002) builds here |
 | **Google Sheets reporting** | `sync-to-google-sheet-p_LQCoVRY` | Tallies response counts per option, writes per-survey grids to Google Sheets (one tab per survey) |
 
 ## Workflow step anatomy
@@ -74,12 +84,13 @@ Every answer is classified into exactly one bucket:
 
 ## Snowflake objects
 
-In `MCC_RAW.MARKETING_DEV`:
+In `MCC_RAW.MARKETING_DEV` (pull live DDL with `snowsql -q "SELECT GET_DDL('TABLE','MCC_RAW.MARKETING_DEV.<name>')"`):
 
-- `DIM_SURVEY_CATALOG` — source-of-truth questions+options synced from Braze.
-- `DIM_SURVEY_TAXONOMY` — Claude-generated bucket / path-or-key/value / confidence per option. Has `IS_APPROVED` boolean column used in backfill/reporting queries to filter to only approved classifications.
-- `STG_SURVEY_RESPONSES` — raw response events; joined to taxonomy for per-user rollup.
-- `V_AMPLITUDE_SURVEY_SYNC` — 3-column shape (`DEVICE_ID`, `USER_PROPERTY`, `USER_PROPERTY_VALUE`) that Amplitude ingests.
+- `DIM_SURVEY_QUESTIONS` — one row per poll question, synced from Braze. PK (`POLL_ID`, `QUESTION_KEY`); `QUESTION_TYPE` is `single` / `multi` / `text`.
+- `DIM_SURVEY_OPTIONS` — one row per answer option. Surrogate PK `OPTION_ID` (autoincrement), unique on (`POLL_ID`, `QUESTION_KEY`, `OPTION_VALUE`). `OPTION_SOURCE` is `catalog` (synced from Braze) or `response` (a free-text answer materialized by `text-response-classify`). `IS_CATCH_ALL` flags options that are skipped from classification/rollup.
+- `DIM_SURVEY_TAXONOMY` — Claude-generated bucket / path-or-key/value / confidence, **keyed on `OPTION_ID`** (joins back through `DIM_SURVEY_OPTIONS`). `IS_APPROVED` boolean (default `FALSE`) and `CONDITION_SEQUENCE` (VARIANT; ordered prerequisite `OPTION_ID`s for sequence-gated taxonomies). Per **ADR-0002**, `IS_APPROVED` is currently *decorative* — the sync view does not yet filter on it.
+- `STG_SURVEY_RESPONSES` — raw response events; resolved to `OPTION_ID` and joined to taxonomy for per-user rollup.
+- `V_AMPLITUDE_SURVEY_SYNC` — 3-column shape (`DEVICE_ID`, `USER_PROPERTY`, `USER_PROPERTY_VALUE`) that Amplitude ingests. Resolves catalog single/multi answers and `response`-sourced text answers to `OPTION_ID`, honors `CONDITION_SEQUENCE`, and excludes catch-alls. **Ungated** today (no `WHERE IS_APPROVED`) — see ADR-0002 for the planned gate.
 
 Backfill scripts: `backfill.sql`, `backfill_stage3.sql`.
 
@@ -89,6 +100,6 @@ Backfill scripts: `backfill.sql`, `backfill_stage3.sql`.
 
 ```bash
 cd classify-taxonomy && npm install
-# Export catalog first: snowsql -q "SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG" --format json > catalog.json
+# Export catalog first: snowsql -q "SELECT o.POLL_ID, o.QUESTION_KEY, q.QUESTION_TEXT, o.OPTION_VALUE, o.OPTION_LABEL FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q ON q.POLL_ID=o.POLL_ID AND q.QUESTION_KEY=o.QUESTION_KEY WHERE o.OPTION_SOURCE='catalog'" --format json > catalog.json
 node classify.js --input catalog.json --dry-run
 ```

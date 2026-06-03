@@ -35,6 +35,26 @@ _Avoid_: "the content block" unqualified (the Hub page is also a content block).
 The Hub's outer card chrome (`.survey-card`) that wraps each Poll or Premium Survey in the
 grid. Distinct from the Poll widget that renders *inside* an opened Poll card.
 
+## Classification lifecycle
+
+**Classifying** (a.k.a. _producing_):
+Claude turning a survey answer option into one or more `DIM_SURVEY_TAXONOMY` rows
+(bucket + path/key-value + confidence). Done by the `taxonomy-classification` and
+`text-response-classify` workflows. Rows land with `IS_APPROVED = FALSE`.
+
+**Surfacing** (a.k.a. _communicating_ a new taxonomy):
+Presenting freshly-classified taxonomy rows to a human to review and approve
+(`IS_APPROVED → TRUE`) before they flow downstream to Amplitude. **Not yet built** —
+this is the missing step the team refers to when it says taxonomies aren't being
+"communicated." Distinct from _classifying_, which is the upstream producing step.
+_Avoid_: using "communicating" to mean the classifying/producing step.
+
+**Approved** (`IS_APPROVED`):
+A boolean on `DIM_SURVEY_TAXONOMY` intended to mark a classification as human-reviewed.
+**Currently decorative** — `V_AMPLITUDE_SURVEY_SYNC` does not filter on it, so every
+classification flows to Amplitude regardless. A real approval gate requires both the
+_surfacing_ step (to set it) and a `WHERE IS_APPROVED` in the sync view (to enforce it).
+
 ## Flagged ambiguities
 
 - **"Content block"** is ambiguous: both the Insights Hub page and the Poll widget are Braze
@@ -42,3 +62,7 @@ grid. Distinct from the Poll widget that renders *inside* an opened Poll card.
   (`prism_template_for_landingpage.html`). Say "the Hub" / "the Hub page" for the other.
 - **`crm_prism_surveys`** (catalog name) backs **Polls**, not Premium Surveys, despite the
   "surveys" name. Premium Surveys are in `crm_prism_external_surveys`.
+- **`crm_surveys`** (no `prism_`) is the **retired** legacy Poll catalog. Going forward only
+  `crm_prism_surveys` is authored and synced; `sync-braze-to-snowflake` reads
+  `crm_prism_surveys`. Legacy `sf-*` polls may be migrated over later.
+  _Avoid_: treating `crm_surveys` as current.
