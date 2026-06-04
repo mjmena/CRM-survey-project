@@ -1,9 +1,10 @@
 # Respondent demographic enrichment (issue #7)
 
 A surface-agnostic layer that attaches Audience Acuity (AA) demographics to individual
-survey responses. The Google Sheet "Responses + Demographics" tab is the first consumer;
-a future Prism dashboard (ADR-0002 surface) would read the same views. Read-only — it does
-**not** feed Amplitude/Braze (`V_AMPLITUDE_SURVEY_SYNC` is unchanged).
+survey responses. The Google Sheet per-survey `Survey <poll>` tab is the first consumer
+(the demographics ride below the tally in one stacked tab — see ADR-0003); a future Prism
+dashboard (ADR-0002 surface) would read the same views. Read-only — it does **not** feed
+Amplitude/Braze (`V_AMPLITUDE_SURVEY_SYNC` is unchanged).
 
 ## Modules
 
@@ -12,7 +13,7 @@ a future Prism dashboard (ADR-0002 surface) would read the same views. Read-only
 | 1. Identity | `DIM_RESPONDENT_IDENTITY` (table) | one row per response | `HEM` (SHA-256 hashed email) + `HEM_SOURCE`. Materialized once per Poll. |
 | 2. Demographics | `V_RESPONDENT_DEMOGRAPHICS` (view) → `DIM_RESPONDENT_DEMOGRAPHICS` (table) | one row per HEM | Fixed non-identifying contract (below). The view's AA join is a ~150s 497M-row scan, so it's **materialized** into the table at refresh time; the export reads the table. |
 | 3. Per-row export | `V_SURVEY_RESPONSE_DEMOGRAPHICS` (view) | one row per response | Answers as an `ANSWERS` object; wide pivot done in JS. Reads the materialized table so each sync is cheap. |
-| 4. Sheets writer | `sync-to-google-sheet` steps | one row per response | `build_response_rows/transform.js` (pure) → "Responses + Demographics" tab. |
+| 4. Sheets writer | report-one-survey worker (per-survey) + orchestrator fan-out (ADR-0003) | one stacked tab per poll | `build_survey_grid/transform.mjs` (pure) builds the tally + per-response grid into one `Survey <poll>` tab. |
 
 ## Refresh (Module 1)
 
@@ -44,11 +45,12 @@ finer than STATE/DMA:
 
 **Never** name, street address, ZIP, lat/long, census, plaintext email, religion, language.
 The assertion script enforces no direct-PII columns. The Sheet header IS this contract — the
-`DEMOGRAPHIC_COLUMNS` constant in `build_response_rows/transform.js` mirrors it.
+`DEMOGRAPHIC_COLUMNS` constant in `build_survey_grid/transform.mjs` mirrors it (these columns
+trail the poll answers in the per-response grid).
 
 ## Tests & assertions
 
-- `npm test` (vitest) — `resolve-identity.test.js`, `build_response_rows/transform.test.js`.
+- `npm test` (vitest) — `resolve-identity.test.js`, `test/build-survey-grid.test.js`.
 - `snowsql -f migration/assert_respondent_demographics.sql` (Module 2 PASS/FAIL).
 - `snowsql -f migration/assert_survey_response_demographics.sql` (Module 3 PASS/FAIL).
 

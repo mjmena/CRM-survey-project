@@ -45,3 +45,34 @@ mapping needs to be data-driven.
 **Sequencing.** Build the worker first and verify per-survey output to a sheet; then the
 orchestrator fan-out; then retire the duplicate workflow. The stopgap filter keeps current
 reporting alive throughout the transition.
+
+## Addendum — decisions made during implementation (#11–#13)
+
+- **Write strategy: full resync (both sections).** The human-in-the-loop call required by
+  #11. Per-poll scoping already removes the "resync is too heavy" motivation (the weight was
+  the all-polls aggregate). More decisively, identity enrichment runs *asynchronously after*
+  responses land (`refresh-identity.mjs`), so append-only would write rows with the
+  demographics that existed at arrival — almost always none — and never backfill them,
+  leaving the demographic columns permanently blank and defeating issue #7. Resync is what
+  makes the demographics actually populate; it is also self-healing if a tab is hand-edited.
+
+- **One stacked tab per poll, in survey order.** The two per-poll tabs (aggregate tally +
+  per-response "Responses + Demographics") were consolidated into a single `Survey <poll>`
+  tab: the tally on top, then a divider, then the per-response grid. The per-response grid
+  **leads with the poll answers, then the demographic columns**. Both sections order
+  questions by **survey order**, derived from the answer index in the raw responses
+  (`MIN(a.index)`, carried as `QUESTION_ORDER`) rather than alphabetically. The two build
+  steps and two write steps collapse into one each; the worker carries the single
+  `build_survey_grid/transform.mjs`.
+
+- **Mapping: curated prefix split.** The orchestrator's starting mapping sends substantive
+  CRM surveys to the CRM sheet (`19pUJyXD…`) and SurveyFast generation polls to the
+  SurveyFast sheet (`1ycxK2pQ…`), omitting test/template polls and tiny (<~100 response)
+  strays. This ends the prior all-polls-to-both duplication; the mapping array is the single
+  source of truth and is trivially editable.
+
+- **Fan-out is sequential, fire-and-forget.** The worker's `http-new-requests` source
+  self-responds immediately, so a 2xx POST means "accepted," not "sheet written." The
+  orchestrator collects per-survey POST failures and throws; worker run failures surface via
+  the worker's own `error_notification`. Concurrent worker runs can briefly race on first-run
+  tab creation for a shared sheet, which resync self-heals on the next cycle.

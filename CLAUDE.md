@@ -42,7 +42,7 @@ Survey submissions feed the same rollup:
 Respondent demographic enrichment (issue #7, read-only reporting branch):
    STG_SURVEY_RESPONSES → refresh-identity.mjs (windowed EVENTS_412949 scan) → DIM_RESPONDENT_IDENTITY (HEM per response)
    → V_RESPONDENT_DEMOGRAPHICS (Audience Acuity, non-identifying) keyed on HEM
-   → V_SURVEY_RESPONSE_DEMOGRAPHICS (one row per response) → sync-to-google-sheet "Responses + Demographics" tab
+   → V_SURVEY_RESPONSE_DEMOGRAPHICS (one row per response) → report-one-survey worker → per-survey "Survey <poll>" tab (demographics stacked below the tally)
 ```
 
 Design decisions behind the trigger and the approval gate are recorded in `docs/adr/`
@@ -57,7 +57,8 @@ Design decisions behind the trigger and the approval gate are recorded in `docs/
 | **Text response classify** | `text-response-classify-p_QPC6VBY` | Classifies free-text survey answers; writes new `DIM_SURVEY_OPTIONS` rows with `OPTION_SOURCE='response'` plus their taxonomy |
 | **Survey response ingest** | `survey-response-p_LQCoAMR` | Ingests Braze survey submission events into `STG_SURVEY_RESPONSES` |
 | **PRISM MCP connector** | `prism-mcp-p_6lCVPoa` | Remote MCP server exposing survey/taxonomy tools (e.g. `get_taxonomy`) to Claude; the future surfacing/approval surface (ADR-0002) builds here |
-| **Google Sheets reporting** | `sync-to-google-sheet-p_LQCoVRY` | Tallies response counts per option → per-survey `Survey <poll>` grid tabs. Issue #7 adds a parallel branch (`query_response_demographics` → `build_response_rows` → `write_response_demographics_to_sheet`) writing a per-survey `Responses + Demographics <poll>` tab — one row per response, demographic + question columns — alongside (not replacing) the tally tab. Row-transform is the pure `build_response_rows/transform.js` |
+| **Report One Survey (worker)** | `sync-to-google-sheet-p_LQCoVRY` | HTTP-triggered (`dc_MDuJLd2`), takes `{poll_id, spreadsheet_id}`. Queries tally + demographics **for that one poll**, builds a single stacked `Survey <poll>` tab — tally (questions in survey order) on top, per-response grid below (columns lead with the poll answers, then the demographic contract) — and full-resyncs it to that sheet. One survey per run bounds the payload under the 128 MB cap (ADR-0003). Pure row-transform: `build_survey_grid/transform.mjs` |
+| **Report Survey Orchestrator** | `copy-of-sync-to-google-sheet-p_xMC9dJJ` | Timer-triggered. Holds the survey→sheet mapping (a JS array in `fan_out_reports/entry.mjs`, the single source of truth) and POSTs `{poll_id, spreadsheet_id}` to the worker per entry (explicit-handoff fan-out, ADR-0001/0003). Per-survey failures are collected and thrown, not swallowed |
 
 ## Workflow step anatomy
 
