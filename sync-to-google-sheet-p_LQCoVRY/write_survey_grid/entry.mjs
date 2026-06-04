@@ -40,8 +40,12 @@ export default defineComponent({
     if (!spreadsheetResp.ok) throw new Error(`Failed to fetch spreadsheet: ${spreadsheetResp.status}`);
     const spreadsheet = await spreadsheetResp.json();
 
-    const existingTabs = new Set(
-      (spreadsheet.sheets || []).map((s) => s.properties.title.toLowerCase())
+    // title (lowercased) -> sheetId, so we can resize the grid before writing.
+    const tabIdByName = new Map(
+      (spreadsheet.sheets || []).map((s) => [
+        s.properties.title.toLowerCase(),
+        s.properties.sheetId,
+      ])
     );
 
     const results = [];
@@ -51,9 +55,12 @@ export default defineComponent({
       const tabName = `Survey ${pollId}`.slice(0, 100);
       const escapedName = tabName.replace(/'/g, "''");
       const grid = grids[pollId];
+      const rowCount = Math.max(grid.length, 1);
+      const colCount = Math.max(...grid.map((r) => r.length), 1);
 
-      // 1. Create tab if it doesn't exist
-      if (!existingTabs.has(tabName.toLowerCase())) {
+      // 1. Create the tab if it doesn't exist, capturing its sheetId.
+      let sheetId = tabIdByName.get(tabName.toLowerCase());
+      if (sheetId === undefined) {
         const createResp = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}:batchUpdate`,
           {
@@ -65,26 +72,42 @@ export default defineComponent({
           }
         );
         if (!createResp.ok) throw new Error(`Failed to create tab "${tabName}": ${createResp.status}`);
-        existingTabs.add(tabName.toLowerCase());
+        const created = await createResp.json();
+        sheetId = created.replies[0].addSheet.properties.sheetId;
+        tabIdByName.set(tabName.toLowerCase(), sheetId);
       }
 
       // 2. Clear the tab (full resync — so async identity enrichment backfills
-      //    onto rows that were blank when first written; ADR-0003).
+      //    onto rows that were blank when first written; ADR-0003). Clearing
+      //    also wipes any stale cells to the right of this run's ragged rows.
       const clearResp = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'`)}:clear`,
-        {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify({}),
-        }
+        { method: "POST", headers: authHeaders, body: JSON.stringify({}) }
       );
       if (!clearResp.ok) throw new Error(`Failed to clear tab "${tabName}": ${clearResp.status}`);
 
-      // 3. Write the grid in row-chunks. A single PUT of a large poll's
-      //    per-response section (e.g. ~38k rows) can exceed the Sheets request
-      //    size; chunked values.update PUTs (each at its own A1 row offset)
-      //    keep every request small. values.update auto-expands the grid, and
-      //    the tab was cleared above so no stale cells remain to the right.
+      // 3. Resize the grid to fit. A cleared/new tab keeps its old (often ~1000)
+      //    row count; a chunked write at e.g. A5001 would otherwise land beyond
+      //    the grid and 400. Pre-sizing keeps every chunk in-bounds.
+      const resizeResp = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}:batchUpdate`,
+        {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            requests: [{
+              updateSheetProperties: {
+                properties: { sheetId, gridProperties: { rowCount, columnCount: colCount } },
+                fields: "gridProperties.rowCount,gridProperties.columnCount",
+              },
+            }],
+          }),
+        }
+      );
+      if (!resizeResp.ok) throw new Error(`Failed to resize tab "${tabName}" to ${rowCount}x${colCount}: ${resizeResp.status}`);
+
+      // 4. Write the grid in row-chunks so no single request is oversized. Each
+      //    chunk is now within the pre-sized grid bounds.
       const CHUNK_ROWS = 5000;
       for (let start = 0; start < grid.length; start += CHUNK_ROWS) {
         const chunk = grid.slice(start, start + CHUNK_ROWS);
