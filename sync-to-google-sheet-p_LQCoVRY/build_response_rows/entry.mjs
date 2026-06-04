@@ -1,7 +1,8 @@
-import { buildResponseGrids } from "./transform.js";
+import { buildResponseGrids } from "./transform.mjs";
 
-// Thin Pipedream step: a code step may only `export default` (named exports break
-// the deploy), so the pure, unit-tested transform lives in ./transform.js.
+// Thin Pipedream step. Must be `.mjs` (it uses `import`; Pipedream parses `.js` as
+// CommonJS) and may only `export default`. The pure, unit-tested transform lives in
+// the sibling ./transform.mjs (bundled into this step at deploy).
 export default defineComponent({
   name: "Build Response + Demographics Rows",
   description: "Transforms V_SURVEY_RESPONSE_DEMOGRAPHICS rows into per-survey wide grids (one row per response, demographic + question columns) for Google Sheets",

@@ -1,13 +1,13 @@
 // Issue #7, Module 4 — pure row-transform for the "Responses + Demographics" tab.
 //
-// Lives in a sibling module (not entry.js) because a Pipedream code step may only
-// `export default` — named exports in the step file break the deploy ("Unexpected
-// token 'export'"). entry.js imports these; vitest imports them directly
-// (transform.test.js). This is the PRD's prime unit-test target (story 17). Pure:
-// no Snowflake, no Sheets, no clock.
+// Sibling `.mjs` helper to build_response_rows/entry.mjs (Pipedream bundles a
+// same-dir `.mjs` import; it must be a PLAIN module with no `defineComponent`).
+// Unit-tested directly from test/build-response-rows.test.js — deploy-bundled AND
+// testable. The PRD's prime unit-test target (story 17). Pure: no Snowflake, no
+// Sheets, no clock.
 //
-// The transform turns V_SURVEY_RESPONSE_DEMOGRAPHICS rows (one per response) into a
-// per-Poll 2D grid [header, ...dataRows].
+// Turns V_SURVEY_RESPONSE_DEMOGRAPHICS rows (one per response) into a per-Poll 2D
+// grid [header, ...dataRows].
 
 // Response/identity meta columns: [header label, row key].
 export const META_COLUMNS = [

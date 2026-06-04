@@ -179,12 +179,12 @@ steps:
       params: []
 - namespace: build_response_rows
   runtime: nodejs20.x
-  uses: "./build_response_rows/entry.js"
+  uses: "./build_response_rows/entry.mjs"
   props:
     response_rows: "{{steps.query_response_demographics.$return_value}}"
 - namespace: write_response_demographics_to_sheet
   runtime: nodejs20.x
-  uses: "./write_response_demographics_to_sheet/entry.js"
+  uses: "./write_response_demographics_to_sheet/entry.mjs"
   props:
     google_sheets:
       authProvisionId: apn_MGhwj7z

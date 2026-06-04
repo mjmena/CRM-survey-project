@@ -1,10 +1,13 @@
+// Lives OUTSIDE the Pipedream step dir (per the synced-project skill: only the
+// step's own entry.mjs + sibling .mjs helpers belong there). Imports the pure
+// transform helper directly — deploy-bundled into the step AND unit-tested here.
 import { describe, it, expect } from "vitest";
 import {
   buildResponseGrid,
   buildResponseGrids,
   META_COLUMNS,
   DEMOGRAPHIC_COLUMNS,
-} from "./transform.js";
+} from "../sync-to-google-sheet-p_LQCoVRY/build_response_rows/transform.mjs";
 
 const META = META_COLUMNS.map(([l]) => l);
 const DEMO = DEMOGRAPHIC_COLUMNS.map(([l]) => l);
@@ -136,4 +139,3 @@ describe("buildResponseGrids", () => {
     expect(grids.p2.length).toBe(1 + 1);
   });
 });
-
