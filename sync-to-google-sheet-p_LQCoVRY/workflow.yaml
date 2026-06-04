@@ -119,4 +119,75 @@ steps:
       authProvisionId: apn_MGhwj7z
     spreadsheet_id: 19pUJyXDsmDRjZSRaMxpAdLj1ZxVZqA5ByAjsJF2GFxM
     grids: "{{steps.build_tally_grids.$return_value.grids}}"
+- namespace: query_response_demographics
+  runtime: nodejs20.x
+  uses: snowflake-execute-sql-query@0.2.3
+  props:
+    snowflake:
+      authProvisionId: apn_yghdQYJ
+    sql:
+      value: |-
+        SELECT
+            INGESTION_ID,
+            POLL_ID,
+            TO_CHAR(SUBMITTED_AT)  AS SUBMITTED_AT,
+            MARKET_NAME,
+            IDENTITY_SOURCE,
+            AGE_BAND,
+            GENERATION,
+            INCOME_HH,
+            NET_WORTH_HH,
+            EDUCATION,
+            OCCUPATION_CATEGORY,
+            MARITAL_STATUS,
+            HOME_OWNER,
+            ETHNIC_GROUP,
+            HAS_CHILDREN_HH,
+            GENDER,
+            STATE,
+            DMA,
+            AFFINITY_INVESTOR,
+            AFFINITY_HOMEOWNER,
+            TO_JSON(ANSWERS)       AS ANSWERS
+        FROM MCC_RAW.MARKETING_DEV.V_SURVEY_RESPONSE_DEMOGRAPHICS
+        ORDER BY POLL_ID, SUBMITTED_AT
+      query: |-
+        SELECT
+            INGESTION_ID,
+            POLL_ID,
+            TO_CHAR(SUBMITTED_AT)  AS SUBMITTED_AT,
+            MARKET_NAME,
+            IDENTITY_SOURCE,
+            AGE_BAND,
+            GENERATION,
+            INCOME_HH,
+            NET_WORTH_HH,
+            EDUCATION,
+            OCCUPATION_CATEGORY,
+            MARITAL_STATUS,
+            HOME_OWNER,
+            ETHNIC_GROUP,
+            HAS_CHILDREN_HH,
+            GENDER,
+            STATE,
+            DMA,
+            AFFINITY_INVESTOR,
+            AFFINITY_HOMEOWNER,
+            TO_JSON(ANSWERS)       AS ANSWERS
+        FROM MCC_RAW.MARKETING_DEV.V_SURVEY_RESPONSE_DEMOGRAPHICS
+        ORDER BY POLL_ID, SUBMITTED_AT
+      params: []
+- namespace: build_response_rows
+  runtime: nodejs20.x
+  uses: "./build_response_rows/entry.js"
+  props:
+    response_rows: "{{steps.query_response_demographics.$return_value}}"
+- namespace: write_response_demographics_to_sheet
+  runtime: nodejs20.x
+  uses: "./write_response_demographics_to_sheet/entry.js"
+  props:
+    google_sheets:
+      authProvisionId: apn_MGhwj7z
+    spreadsheet_id: 19pUJyXDsmDRjZSRaMxpAdLj1ZxVZqA5ByAjsJF2GFxM
+    grids: "{{steps.build_response_rows.$return_value.grids}}"
 

@@ -38,6 +38,11 @@ Braze crm_prism_surveys catalog
 Survey submissions feed the same rollup:
    Braze → survey-response (ingest) → STG_SURVEY_RESPONSES
    free-text answers → text-response-classify (Claude) → DIM_SURVEY_OPTIONS (OPTION_SOURCE='response') + DIM_SURVEY_TAXONOMY
+
+Respondent demographic enrichment (issue #7, read-only reporting branch):
+   STG_SURVEY_RESPONSES → refresh-identity.mjs (windowed EVENTS_412949 scan) → DIM_RESPONDENT_IDENTITY (HEM per response)
+   → V_RESPONDENT_DEMOGRAPHICS (Audience Acuity, non-identifying) keyed on HEM
+   → V_SURVEY_RESPONSE_DEMOGRAPHICS (one row per response) → sync-to-google-sheet "Responses + Demographics" tab
 ```
 
 Design decisions behind the trigger and the approval gate are recorded in `docs/adr/`
@@ -52,7 +57,7 @@ Design decisions behind the trigger and the approval gate are recorded in `docs/
 | **Text response classify** | `text-response-classify-p_QPC6VBY` | Classifies free-text survey answers; writes new `DIM_SURVEY_OPTIONS` rows with `OPTION_SOURCE='response'` plus their taxonomy |
 | **Survey response ingest** | `survey-response-p_LQCoAMR` | Ingests Braze survey submission events into `STG_SURVEY_RESPONSES` |
 | **PRISM MCP connector** | `prism-mcp-p_6lCVPoa` | Remote MCP server exposing survey/taxonomy tools (e.g. `get_taxonomy`) to Claude; the future surfacing/approval surface (ADR-0002) builds here |
-| **Google Sheets reporting** | `sync-to-google-sheet-p_LQCoVRY` | Tallies response counts per option, writes per-survey grids to Google Sheets (one tab per survey) |
+| **Google Sheets reporting** | `sync-to-google-sheet-p_LQCoVRY` | Tallies response counts per option → per-survey `Survey <poll>` grid tabs. Issue #7 adds a parallel branch (`query_response_demographics` → `build_response_rows` → `write_response_demographics_to_sheet`) writing a per-survey `Responses + Demographics <poll>` tab — one row per response, demographic + question columns — alongside (not replacing) the tally tab. Row-transform is the pure `build_response_rows/transform.js` |
 
 ## Workflow step anatomy
 
@@ -91,6 +96,17 @@ In `MCC_RAW.MARKETING_DEV` (pull live DDL with `snowsql -q "SELECT GET_DDL('TABL
 - `DIM_SURVEY_TAXONOMY` — Claude-generated bucket / path-or-key/value / confidence, **keyed on `OPTION_ID`** (joins back through `DIM_SURVEY_OPTIONS`). `IS_APPROVED` boolean (default `FALSE`) and `CONDITION_SEQUENCE` (VARIANT; ordered prerequisite `OPTION_ID`s for sequence-gated taxonomies). Per **ADR-0002**, `IS_APPROVED` is currently *decorative* — the sync view does not yet filter on it.
 - `STG_SURVEY_RESPONSES` — raw response events; resolved to `OPTION_ID` and joined to taxonomy for per-user rollup.
 - `V_AMPLITUDE_SURVEY_SYNC` — 3-column shape (`DEVICE_ID`, `USER_PROPERTY`, `USER_PROPERTY_VALUE`) that Amplitude ingests. Resolves catalog single/multi answers and `response`-sourced text answers to `OPTION_ID`, honors `CONDITION_SEQUENCE`, and excludes catch-alls. **Ungated** today (no `WHERE IS_APPROVED`) — see ADR-0002 for the planned gate.
+
+### Respondent demographic enrichment (issue #7)
+
+A surface-agnostic enrichment layer attaches Audience Acuity demographics to individual responses. The Google Sheet is the first consumer; a future Prism dashboard reads the same views.
+
+- `DIM_RESPONDENT_IDENTITY` — **materialized once per Poll**, one row per response (PK `INGESTION_ID`). Resolves each response to a `HEM` (SHA-256 hashed email — the AA join key) with `HEM_SOURCE` (`payload` | `events` | NULL). The 55B-row `EVENTS_412949` scan that recovers a HEM from `device_id` is **windowed to the Poll's submission range and run only at refresh time** — never at report time. Refresh: `node enrichment/refresh-identity.mjs <POLL_ID> [--pad <days>]` (seam (a): heavy windowed collapse in `enrichment/identity_candidates.sql`; payload-vs-events precedence + HEM normalization in the unit-tested `enrichment/resolve-identity.js`). DDL: `migration/respondent_identity_ddl.sql`.
+- `V_RESPONDENT_DEMOGRAPHICS` — keyed on `HEM`; a **fixed, non-identifying** column contract (age band, income/net-worth bands, education, occupation, marital, homeowner, ethnicity, children flag, gender, STATE/DMA, thin affinity flags). Collapses the HEM→AA-person fan-out to one deterministic primary. **Never** exposes name/street/ZIP/lat-long/plaintext email. DDL: `migration/respondent_demographics_ddl.sql`. Affinity is thin in v1 (DATA-row flags only); richer affinity (B2C_SIGNALS etc.) is a documented follow-up.
+- `DIM_RESPONDENT_DEMOGRAPHICS` — **materialized** `SELECT *` of the view above. The AA join is a ~150s scan of the 497M-row `EMAIL` table (`SHA256` isn't clustered, so it can't prune) — far too hot to run on every Sheets sync (300s lambda). `refresh-identity.mjs` rebuilds this table at refresh time; `V_SURVEY_RESPONSE_DEMOGRAPHICS` reads **this table**, so each sync is a cheap ~1.4k-row join.
+- `V_SURVEY_RESPONSE_DEMOGRAPHICS` — **one row per response** (grain check in the assertion script). Left-joins identity + demographics so unresolved responses still appear with blank demographic columns; carries answers as an `ANSWERS` object (the per-Poll wide pivot is done by the pure JS row-transform, not SQL) plus the payload `market_name`. DDL: `migration/survey_response_demographics_ddl.sql`.
+
+SQL assertions: `migration/assert_respondent_demographics.sql`, `migration/assert_survey_response_demographics.sql` (PASS/FAIL rows; anchored on SPICE). Pure-JS helpers are unit-tested with vitest — run `npm test` from the repo root. Findings/validation: `docs/findings-spice-glp1-audience-acuity.md`.
 
 Backfill scripts: `backfill.sql`, `backfill_stage3.sql`.
 
