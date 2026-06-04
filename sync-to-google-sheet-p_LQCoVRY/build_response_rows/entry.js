@@ -10,7 +10,12 @@
 // per-Poll 2D grid [header, ...dataRows]. Pure: no Snowflake, no Sheets, no clock.
 // It is the PRD's prime unit-test target (story 17); see entry.test.js.
 
-const defineComponent = globalThis.defineComponent ?? ((component) => component);
+// Pipedream injects `defineComponent` as a declared binding at deploy time, so we
+// must NOT redeclare that name (a `const defineComponent` collides → VarRedeclaration).
+// Reference it via typeof (safe on an undeclared identifier, even in vitest's strict
+// mode) and fall back to an identity shim under the unit tests.
+const __def =
+  typeof defineComponent !== "undefined" ? defineComponent : (component) => component;
 
 // Response/identity meta columns: [header label, row key].
 export const META_COLUMNS = [
@@ -122,7 +127,7 @@ export function buildResponseGrids(rows) {
   return grids;
 }
 
-export default defineComponent({
+export default __def({
   name: "Build Response + Demographics Rows",
   description: "Transforms V_SURVEY_RESPONSE_DEMOGRAPHICS rows into per-survey wide grids (one row per response, demographic + question columns) for Google Sheets",
   props: {
