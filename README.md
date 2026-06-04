@@ -24,119 +24,116 @@ Survey responses collected via Braze are classified into standardized user-profi
 ## Data Pipeline
 
 ```
-Braze Catalog → Snowflake (DIM_SURVEY_CATALOG)
+Braze crm_prism_surveys catalog → Snowflake (DIM_SURVEY_QUESTIONS + DIM_SURVEY_OPTIONS)
                     ↓
            AI Classification (Claude via Pipedream)
                     ↓
-           Snowflake (DIM_SURVEY_TAXONOMY)
+           Snowflake (DIM_SURVEY_TAXONOMY, keyed on OPTION_ID)
                     ↓
            Amplitude Sync View (V_AMPLITUDE_SURVEY_SYNC)
                     ↓
            Amplitude Profile → Braze Attributes
 ```
 
+Design decisions behind the classification trigger and the (planned) human approval gate
+are recorded in [`docs/adr/0001`](docs/adr/0001-classification-trigger-explicit-handoff.md)
+and [`docs/adr/0002`](docs/adr/0002-human-approval-gate-before-amplitude.md). The domain
+glossary lives in [`CONTEXT.md`](CONTEXT.md).
+
 ## Snowflake Schema
+
+All objects live in `MCC_RAW.MARKETING_DEV`. Pull live DDL with
+`snowsql -q "SELECT GET_DDL('TABLE','MCC_RAW.MARKETING_DEV.<name>')"` (or `'VIEW'` for the view).
+
+### Catalog: DIM_SURVEY_QUESTIONS + DIM_SURVEY_OPTIONS
+
+The Braze catalog is flattened into two tables (it replaced the retired single
+`DIM_SURVEY_CATALOG`):
+
+- **`DIM_SURVEY_QUESTIONS`** — one row per question. PK (`POLL_ID`, `QUESTION_KEY`).
+  `QUESTION_TYPE` is `single` / `multi` / `text`.
+- **`DIM_SURVEY_OPTIONS`** — one row per answer option, with a surrogate **`OPTION_ID`**
+  (autoincrement PK) that everything downstream joins on. Unique on
+  (`POLL_ID`, `QUESTION_KEY`, `OPTION_VALUE`). `OPTION_SOURCE` is `catalog` (synced from
+  Braze) or `response` (a free-text answer materialized by `text-response-classify`).
+  `IS_CATCH_ALL` flags "Other" / "Prefer not to say" style options that are not classified.
 
 ### DIM_SURVEY_TAXONOMY
 
+Claude-generated classification, **one or more rows per `OPTION_ID`**:
+
 ```sql
-CREATE TABLE IF NOT EXISTS MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY (
-    POLL_ID            VARCHAR       NOT NULL,
-    QUESTION_KEY       VARCHAR       NOT NULL,
-    OPTION_VALUE       VARCHAR       NOT NULL,
-    BUCKET             VARCHAR       NOT NULL,        -- 'demographic', 'preference', or 'consumption'
-
-    -- For consumption/preference buckets:
-    TAXONOMY_PATH      VARCHAR,                       -- 'Sports|Basketball|March Madness 2026|Duke Blue Devils'
-    TAXONOMY_DEPTH     INTEGER,                       -- number of pipe segments
-    TAXONOMY_LEVELS    VARIANT,                       -- ['Sports','Basketball','March Madness 2026','Duke Blue Devils']
-
-    -- For demographic bucket:
-    DEMOGRAPHIC_KEY    VARCHAR,                       -- 'retired', 'political_affiliation'
-    DEMOGRAPHIC_VALUE  VARCHAR,                       -- 'true', 'Democrat'
-    DEMOGRAPHIC_TYPE   VARCHAR,                       -- 'boolean', 'string', 'number'
-
-    CONFIDENCE         FLOAT,                         -- 0.0-1.0 from AI
-    CLASSIFIED_BY      VARCHAR DEFAULT 'claude',
-    CREATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
-    UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
+OPTION_ID          NUMBER   NOT NULL,   -- FK → DIM_SURVEY_OPTIONS.OPTION_ID
+BUCKET             VARCHAR  NOT NULL,   -- 'consumption' | 'preference' | 'demographic'
+-- consumption / preference:
+TAXONOMY_PATH      VARCHAR,             -- 'Sports|Basketball|March Madness 2026|Duke Blue Devils'
+TAXONOMY_DEPTH     NUMBER,              -- number of pipe segments
+TAXONOMY_LEVELS    VARIANT,            -- ['Sports','Basketball','March Madness 2026','Duke Blue Devils']
+-- demographic:
+DEMOGRAPHIC_KEY    VARCHAR,             -- 'retired', 'political_affiliation'
+DEMOGRAPHIC_VALUE  VARCHAR,             -- 'true', 'Democrat'
+DEMOGRAPHIC_TYPE   VARCHAR,             -- 'boolean' | 'string' | 'number'
+CONFIDENCE         FLOAT,               -- 0.0-1.0 from AI
+CONDITION_SEQUENCE VARIANT,            -- ordered prerequisite OPTION_IDs for sequence-gated taxonomies
+CLASSIFIED_BY      VARCHAR  DEFAULT 'claude',
+IS_APPROVED        BOOLEAN  DEFAULT FALSE,   -- human-review gate (see ADR-0002)
+CREATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+UPDATED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 ```
+
+`IS_APPROVED` is currently **decorative** — the sync view does not filter on it yet, so
+every classification reaches Amplitude. See
+[ADR-0002](docs/adr/0002-human-approval-gate-before-amplitude.md) for the planned gate.
 
 ### V_AMPLITUDE_SURVEY_SYNC
 
-Aggregates per-user survey taxonomy into the 3-column contract for Amplitude ingestion (`DEVICE_ID`, `USER_PROPERTY`, `USER_PROPERTY_VALUE`).
-
-```sql
-CREATE OR REPLACE VIEW MCC_RAW.MARKETING_DEV.V_AMPLITUDE_SURVEY_SYNC AS
-
--- Consumption insights (array per user)
-SELECT
-    r.RAW_DATA:device_id::STRING AS DEVICE_ID,
-    'consumption_insights' AS USER_PROPERTY,
-    ARRAY_AGG(DISTINCT t.TAXONOMY_PATH)::STRING AS USER_PROPERTY_VALUE
-FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES r
-CROSS JOIN LATERAL FLATTEN(input => r.RAW_DATA:answers) a
-JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
-  ON r.RAW_DATA:poll_id::STRING = t.POLL_ID
- AND a.value:question::STRING = t.QUESTION_KEY
- AND a.value:answer::STRING = t.OPTION_VALUE
-WHERE t.BUCKET = 'consumption' AND t.TAXONOMY_PATH IS NOT NULL
-GROUP BY 1
-
-UNION ALL
-
--- Preference insights (array per user)
-SELECT
-    r.RAW_DATA:device_id::STRING AS DEVICE_ID,
-    'preference_insights' AS USER_PROPERTY,
-    ARRAY_AGG(DISTINCT t.TAXONOMY_PATH)::STRING AS USER_PROPERTY_VALUE
-FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES r
-CROSS JOIN LATERAL FLATTEN(input => r.RAW_DATA:answers) a
-JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
-  ON r.RAW_DATA:poll_id::STRING = t.POLL_ID
- AND a.value:question::STRING = t.QUESTION_KEY
- AND a.value:answer::STRING = t.OPTION_VALUE
-WHERE t.BUCKET = 'preference' AND t.TAXONOMY_PATH IS NOT NULL
-GROUP BY 1
-
-UNION ALL
-
--- Demographic insights (one row per key per user)
-SELECT
-    r.RAW_DATA:device_id::STRING AS DEVICE_ID,
-    t.DEMOGRAPHIC_KEY AS USER_PROPERTY,
-    t.DEMOGRAPHIC_VALUE AS USER_PROPERTY_VALUE
-FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES r
-CROSS JOIN LATERAL FLATTEN(input => r.RAW_DATA:answers) a
-JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
-  ON r.RAW_DATA:poll_id::STRING = t.POLL_ID
- AND a.value:question::STRING = t.QUESTION_KEY
- AND a.value:answer::STRING = t.OPTION_VALUE
-WHERE t.BUCKET = 'demographic' AND t.DEMOGRAPHIC_KEY IS NOT NULL
-GROUP BY 1, 2, 3;
-```
+Aggregates per-user taxonomy into the 3-column contract for Amplitude ingestion
+(`DEVICE_ID`, `USER_PROPERTY`, `USER_PROPERTY_VALUE`). It resolves each answer in
+`STG_SURVEY_RESPONSES` to an `OPTION_ID` — handling single-select, multi-select (exploded),
+and `response`-sourced text answers — joins to `DIM_SURVEY_TAXONOMY` on `OPTION_ID`, honors
+`CONDITION_SEQUENCE` (sequence-gated taxonomies), and excludes catch-alls. The view is
+**ungated** today (no `WHERE IS_APPROVED`). See `GET_DDL` for the full definition.
 
 ## Pipedream Workflows
 
-### taxonomy-classification-p_WxCpYWv
+Each top-level directory is one GitHub-synced Pipedream workflow; commits to `production`
+auto-deploy.
 
-Classifies survey answer options into taxonomy paths and demographic key/value pairs.
+### sync-braze-to-snowflake-p_V9CgJMd — catalog sync
 
-**Steps:**
-1. `fetch_catalog` — Query DIM_SURVEY_CATALOG from Snowflake
-2. `fetch_existing_taxonomies` — Query existing classifications for consistency
-3. `classify_with_ai` — Send full poll context to Claude, receive classifications
-4. `flatten_results` — Expand multi-classification answers into individual rows
-5. `upsert_taxonomy` — MERGE results into DIM_SURVEY_TAXONOMY
+Fetches the Braze `crm_prism_surveys` catalog and flattens it into `DIM_SURVEY_QUESTIONS`
+and `DIM_SURVEY_OPTIONS` (`OPTION_SOURCE='catalog'`).
 
-### sync-braze-to-snowflake-p_V9CgJMd
+### taxonomy-classification-p_WxCpYWv — classification
 
-Syncs Braze survey catalog to Snowflake DIM_SURVEY_CATALOG.
+Classifies catalog answer options into taxonomy paths / demographic key-value pairs.
 
-### sync-to-google-sheet-p_LQCoVRY
+**Steps:** `extract_poll_id` → `check_already_classified` / `skip_if_classified` →
+`fetch_catalog` (the option rows for the poll) → `fetch_existing_taxonomies` (for
+consistency) → `classify_with_ai` (Claude) → `parse_results` → `flatten_results` →
+`upsert_taxonomy` (MERGE into `DIM_SURVEY_TAXONOMY`, resolving `OPTION_ID`).
 
-Queries survey response tallies and writes to Google Sheets.
+Triggered by HTTP POST (`hi_VOHV2Qx`, body `{"POLL_ID": "..."}`) plus a legacy
+`snowflake-new-row` source being retired per
+[ADR-0001](docs/adr/0001-classification-trigger-explicit-handoff.md).
+
+### text-response-classify-p_QPC6VBY — free-text classification
+
+Classifies free-text survey answers, materializing `DIM_SURVEY_OPTIONS` rows with
+`OPTION_SOURCE='response'` and their taxonomy.
+
+### survey-response-p_LQCoAMR — response ingest
+
+Ingests Braze survey submission events into `STG_SURVEY_RESPONSES`.
+
+### prism-mcp-p_6lCVPoa — MCP connector
+
+Remote MCP server exposing survey/taxonomy tools (e.g. `get_taxonomy`) to Claude. The
+future surfacing/approval surface from ADR-0002 is intended to live here.
+
+### sync-to-google-sheet-p_LQCoVRY — reporting
+
+Queries survey response tallies and writes per-survey grids to Google Sheets.
 
 ## Query Examples
 
@@ -155,14 +152,18 @@ FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
 WHERE BUCKET = 'demographic'
 GROUP BY 1, 2, 3;
 
--- Full user profile for a device
+-- Full user profile for a device (simplified: single-select catalog answers only;
+-- the production V_AMPLITUDE_SURVEY_SYNC also handles multi-select, text, and CONDITION_SEQUENCE)
 SELECT DISTINCT t.BUCKET,
     COALESCE(t.TAXONOMY_PATH, t.DEMOGRAPHIC_KEY || ' = ' || t.DEMOGRAPHIC_VALUE) AS PROFILE_ATTRIBUTE
 FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES r
 CROSS JOIN LATERAL FLATTEN(input => r.RAW_DATA:answers) a
+JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+  ON o.POLL_ID = r.RAW_DATA:poll_id::STRING
+ AND o.QUESTION_KEY = a.value:question::STRING
+ AND o.OPTION_VALUE = a.value:answer::STRING
+ AND o.OPTION_SOURCE = 'catalog'
 JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
-  ON r.RAW_DATA:poll_id::STRING = t.POLL_ID
- AND a.value:question::STRING = t.QUESTION_KEY
- AND a.value:answer::STRING = t.OPTION_VALUE
+  ON t.OPTION_ID = o.OPTION_ID
 WHERE r.RAW_DATA:device_id::STRING = :device_id;
 ```

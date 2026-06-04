@@ -62,7 +62,7 @@ const TOOL_SCHEMAS = [
   {
     name: "create_poll",
     description:
-      "Create a new poll entry in the Braze crm_prism_surveys catalog. Accepts the definition as an object — stringification is handled automatically.",
+      "Create a new poll entry in the Braze crm_prism_surveys catalog. Accepts the definition as an object — stringification is handled automatically. The catalog 'title' field is auto-derived from definition.title (don't pass it separately).",
     inputSchema: {
       type: "object",
       properties: {
@@ -82,6 +82,14 @@ const TOOL_SCHEMAS = [
           type: "string",
           description: "Liquid-evaluated HTML for the results/thanks screen. Must contain <div data-results-slot></div>.",
         },
+        description: {
+          type: "string",
+          description: "Optional. One-line blurb shown under the title on the poll's Insights Hub card.",
+        },
+        est_time: {
+          type: "string",
+          description: "Optional. Free-text estimated completion time shown as a chip on the card, e.g. 'Under 1 min', '2 min'.",
+        },
       },
       required: ["poll_id", "definition", "intro_html", "outro_html"],
     },
@@ -89,7 +97,7 @@ const TOOL_SCHEMAS = [
   {
     name: "update_poll",
     description:
-      "Update an existing poll entry in the crm_prism_surveys catalog by poll_id. Pass only the fields you want to change. Always bump definition.version.",
+      "Update an existing poll entry in the crm_prism_surveys catalog by poll_id. Pass only the fields you want to change. Always bump definition.version. The catalog 'title' field is re-mirrored from definition.title ONLY when you pass a new definition.",
     inputSchema: {
       type: "object",
       properties: {
@@ -100,6 +108,8 @@ const TOOL_SCHEMAS = [
         },
         intro_html: { type: "string", description: "Replacement intro HTML." },
         outro_html: { type: "string", description: "Replacement outro HTML. Must contain <div data-results-slot></div>." },
+        description: { type: "string", description: "Optional. Replacement one-line card blurb." },
+        est_time: { type: "string", description: "Optional. Replacement estimated-time chip text, e.g. 'Under 1 min'." },
       },
       required: ["poll_id"],
     },
@@ -331,6 +341,14 @@ export default defineComponent({
 
 // ── Braze API helpers ─────────────────────────────────────────────────────────
 
+function pollTitleFromDefinition(definition) {
+  let obj = definition;
+  if (typeof definition === "string") {
+    try { obj = JSON.parse(definition); } catch { return ""; }
+  }
+  return obj && typeof obj.title === "string" ? obj.title : "";
+}
+
 async function handleBrazeTool(tool, args, brazeAuth, templateCampaignId) {
   const { instance_domain, region, api_key } = brazeAuth;
   const baseURL = `https://${instance_domain}.braze.${region}`;
@@ -356,28 +374,43 @@ async function handleBrazeTool(tool, args, brazeAuth, templateCampaignId) {
   }
 
   if (tool === "create_poll") {
-    const { poll_id, definition, intro_html, outro_html } = args;
+    const { poll_id, definition, intro_html, outro_html, description, est_time } = args;
     if (!poll_id) return { isError: true, body: { error: "poll_id is required" } };
     if (!definition) return { isError: true, body: { error: "definition is required" } };
     if (!intro_html) return { isError: true, body: { error: "intro_html is required" } };
     if (!outro_html) return { isError: true, body: { error: "outro_html is required" } };
     const defStr = typeof definition === "string" ? definition : JSON.stringify(definition);
+    const item = { id: poll_id, definition: defStr, intro_html, outro_html };
+    // Mirror the card title from definition.title so the Insights Hub card and
+    // the widget intro never drift. definition is the single source of truth.
+    const derivedTitle = pollTitleFromDefinition(definition);
+    if (derivedTitle) item.title = derivedTitle;
+    if (description !== undefined) item.description = description;
+    if (est_time !== undefined) item.est_time = est_time;
     resp = await fetch(`${baseURL}/catalogs/crm_prism_surveys/items`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ items: [{ id: poll_id, definition: defStr, intro_html, outro_html }] }),
+      body: JSON.stringify({ items: [item] }),
     });
     data = await resp.json();
     return { isError: !resp.ok, body: data };
   }
 
   if (tool === "update_poll") {
-    const { poll_id, definition, intro_html, outro_html } = args;
+    const { poll_id, definition, intro_html, outro_html, description, est_time } = args;
     if (!poll_id) return { isError: true, body: { error: "poll_id is required" } };
     const patch = {};
-    if (definition !== undefined) patch.definition = typeof definition === "string" ? definition : JSON.stringify(definition);
+    if (definition !== undefined) {
+      patch.definition = typeof definition === "string" ? definition : JSON.stringify(definition);
+      // Re-mirror title ONLY when a new definition is supplied — never clobber
+      // the existing catalog title on a description/est_time-only update.
+      const derivedTitle = pollTitleFromDefinition(definition);
+      if (derivedTitle) patch.title = derivedTitle;
+    }
     if (intro_html !== undefined) patch.intro_html = intro_html;
     if (outro_html !== undefined) patch.outro_html = outro_html;
+    if (description !== undefined) patch.description = description;
+    if (est_time !== undefined) patch.est_time = est_time;
     resp = await fetch(
       `${baseURL}/catalogs/crm_prism_surveys/items/${encodeURIComponent(poll_id)}`,
       { method: "PATCH", headers, body: JSON.stringify({ items: [patch] }) }

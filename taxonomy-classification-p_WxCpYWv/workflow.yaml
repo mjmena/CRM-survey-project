@@ -6,7 +6,6 @@ settings:
   lambda_timeout: 240
   network: net_5Lnie3
 triggers:
-- id: dc_kjuLB8b
 - id: hi_VOHV2Qx
 steps:
 - namespace: extract_poll_id

@@ -16,8 +16,11 @@ A survey lives as a single row in the Braze `crm_prism_surveys` catalog. The row
 | `definition` | JSON string | The whole survey: pages, questions, options, conditionals, flags. |
 | `intro_html` | string (Liquid) | Replaces the default header on page 1. Liquid is server-evaluated. |
 | `outro_html` | string (Liquid) | Renders the "thanks" view. **Must contain `<div data-results-slot></div>`** where the percentage results land. |
+| `title` | string | **Auto-derived** from `definition.title` by `create_poll` / `update_poll` — never author it directly. Drives the poll's card title on the Insights Hub (so the card renders server-side, no async fill). |
+| `description` | string (optional) | One-line blurb shown under the title on the Insights Hub card. Card-only; not used by the IAM or the poll widget. |
+| `est_time` | string (optional) | Free-text estimated completion time shown as a chip on the card, e.g. `Under 1 min`, `2 min`. Card-only. |
 
-When you ship a new survey you produce all three. The remainder of this doc is mostly about the JSON in `definition`.
+When you ship a new survey you author `definition`, `intro_html`, and `outro_html` (the `title` field mirrors itself from `definition.title`); `description` and `est_time` are optional Insights Hub card metadata. The remainder of this doc is mostly about the JSON in `definition`.
 
 ---
 

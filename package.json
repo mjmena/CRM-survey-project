@@ -1,0 +1,13 @@
+{
+  "name": "crm-prism",
+  "private": true,
+  "type": "module",
+  "description": "Pure helpers + unit tests for the survey enrichment layer (issue #7). Pipedream steps and SQL live alongside; this package only owns the testable JS core.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

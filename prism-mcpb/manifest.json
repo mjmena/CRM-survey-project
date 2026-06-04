@@ -8,9 +8,11 @@
     "name": "PRISM Developer"
   },
   "server": {
-    "type": "uv",
-    "entry_point": "src/server.py",
+    "type": "node",
+    "entry_point": "src/server.js",
     "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/src/server.js"],
       "env": {
         "PIPEDREAM_ACCESS_TOKEN": "${user_config.access_token}"
       }
