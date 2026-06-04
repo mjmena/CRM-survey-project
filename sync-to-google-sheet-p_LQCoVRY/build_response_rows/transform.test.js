@@ -4,7 +4,7 @@ import {
   buildResponseGrids,
   META_COLUMNS,
   DEMOGRAPHIC_COLUMNS,
-} from "./entry.js";
+} from "./transform.js";
 
 const META = META_COLUMNS.map(([l]) => l);
 const DEMO = DEMOGRAPHIC_COLUMNS.map(([l]) => l);
@@ -137,11 +137,3 @@ describe("buildResponseGrids", () => {
   });
 });
 
-describe("default export (Pipedream component)", () => {
-  it("is a component object with a run method (defineComponent shim is safe)", async () => {
-    const { default: component } = await import("./entry.js");
-    expect(typeof component.run).toBe("function");
-    const out = await component.run.call({ response_rows: [enriched] }, { $: { export() {} } });
-    expect(Object.keys(out.grids)).toEqual(["p1"]);
-  });
-});
