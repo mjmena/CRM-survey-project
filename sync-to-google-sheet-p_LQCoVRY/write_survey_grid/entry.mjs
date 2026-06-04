@@ -80,16 +80,29 @@ export default defineComponent({
       );
       if (!clearResp.ok) throw new Error(`Failed to clear tab "${tabName}": ${clearResp.status}`);
 
-      // 3. Write the grid
-      const writeResp = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'!A1`)}?valueInputOption=USER_ENTERED`,
-        {
-          method: "PUT",
-          headers: authHeaders,
-          body: JSON.stringify({ values: grid }),
+      // 3. Write the grid in row-chunks. A single PUT of a large poll's
+      //    per-response section (e.g. ~38k rows) can exceed the Sheets request
+      //    size; chunked values.update PUTs (each at its own A1 row offset)
+      //    keep every request small. values.update auto-expands the grid, and
+      //    the tab was cleared above so no stale cells remain to the right.
+      const CHUNK_ROWS = 5000;
+      for (let start = 0; start < grid.length; start += CHUNK_ROWS) {
+        const chunk = grid.slice(start, start + CHUNK_ROWS);
+        const range = `'${escapedName}'!A${start + 1}`;
+        const writeResp = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+          {
+            method: "PUT",
+            headers: authHeaders,
+            body: JSON.stringify({ values: chunk }),
+          }
+        );
+        if (!writeResp.ok) {
+          throw new Error(
+            `Failed to write rows ${start + 1}-${start + chunk.length} to tab "${tabName}": ${writeResp.status}`
+          );
         }
-      );
-      if (!writeResp.ok) throw new Error(`Failed to write to tab "${tabName}": ${writeResp.status}`);
+      }
 
       results.push({ tabName, rows: grid.length });
     }
