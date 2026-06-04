@@ -1,6 +1,7 @@
 export default defineComponent({
-  name: "Write Tallies to Google Sheet",
-  description: "For each survey, finds or creates a tab and writes the tally grid",
+  name: "Write Survey Grid to Google Sheet",
+  description:
+    "For each poll, finds or creates its single 'Survey <poll>' tab and full-resyncs (clear + write) the stacked grid (tally + per-response demographics)",
   props: {
     google_sheets: {
       type: "app",
@@ -9,12 +10,12 @@ export default defineComponent({
     spreadsheet_id: {
       type: "string",
       label: "Spreadsheet ID",
-      description: "The ID of the Google Sheet to write tallies to (from the URL)",
+      description: "The ID of the Google Sheet to write to (from the URL)",
     },
     grids: {
       type: "any",
-      label: "Tally Grids",
-      description: "Map of poll_id to 2D grid arrays from build_tally_grids",
+      label: "Survey Grids",
+      description: "Map of poll_id to 2D grid arrays from build_survey_grid",
     },
   },
   async run({ $ }) {
@@ -46,7 +47,8 @@ export default defineComponent({
     const results = [];
 
     for (const pollId of pollIds) {
-      const tabName = `Survey ${pollId}`;
+      // One tab per poll. Sheet tab titles cap at 100 chars.
+      const tabName = `Survey ${pollId}`.slice(0, 100);
       const escapedName = tabName.replace(/'/g, "''");
       const grid = grids[pollId];
 
@@ -66,7 +68,8 @@ export default defineComponent({
         existingTabs.add(tabName.toLowerCase());
       }
 
-      // 2. Clear the tab
+      // 2. Clear the tab (full resync — so async identity enrichment backfills
+      //    onto rows that were blank when first written; ADR-0003).
       const clearResp = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheet_id}/values/${encodeURIComponent(`'${escapedName}'`)}:clear`,
         {
