@@ -23,7 +23,7 @@ WITH base AS (
         INGESTION_ID,
         POLL_ID,
         SUBMITTED_AT,
-        NULLIF(RAW_DATA:market_name::STRING, '') AS MARKET_NAME   -- captured at submit time (story 4); blank -> NULL
+        NULLIF(RAW_DATA:market_name::STRING, '') AS PAYLOAD_MARKET_NAME   -- payload market_name; sparse (0% on CRM/IAM polls) & terse codes ('Miami')
     FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
 ),
 raw_answers AS (
@@ -96,7 +96,12 @@ SELECT
     b.INGESTION_ID                        AS INGESTION_ID,
     b.POLL_ID                             AS POLL_ID,
     b.SUBMITTED_AT                        AS SUBMITTED_AT,
-    b.MARKET_NAME                         AS MARKET_NAME,
+    -- Market: the survey-interaction publication (where the survey was actually
+    -- shown), recovered from the device's [Guides-Surveys] events at refresh time;
+    -- full publication names ('Miami Herald'). Falls back to the sparse payload
+    -- market_name only when no guide event was in the window (~2%). Output column
+    -- stays MARKET_NAME so the Sheets row-transform needs no change.
+    COALESCE(i.PUBLICATION_NAME, b.PAYLOAD_MARKET_NAME) AS MARKET_NAME,
     i.HEM_SOURCE                          AS IDENTITY_SOURCE,   -- 'payload' | 'events' | NULL (story 10)
     dem.AGE_BAND                          AS AGE_BAND,
     dem.GENERATION                        AS GENERATION,

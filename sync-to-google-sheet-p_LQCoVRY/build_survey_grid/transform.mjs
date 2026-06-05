@@ -15,7 +15,7 @@
 export const META_COLUMNS = [
   ["Response ID", "INGESTION_ID"],
   ["Submitted At", "SUBMITTED_AT"],
-  ["Market", "MARKET_NAME"], // from the response payload (RAW_DATA:market_name)
+  ["Market", "MARKET_NAME"], // survey-interaction publication (the device's [Guides-Surveys] publication_name), payload market_name fallback — see V_SURVEY_RESPONSE_DEMOGRAPHICS
 ];
 
 // The fixed, non-identifying demographic contract — mirrors V_RESPONDENT_DEMOGRAPHICS.

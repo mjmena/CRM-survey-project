@@ -29,7 +29,9 @@ SELECT 'B2 demographic coverage >= 50%' AS ASSERTION,
        ROUND(COUNT(AGE_BAND) / NULLIF(COUNT(*), 0), 3) AS COVERAGE
 FROM V_SURVEY_RESPONSE_DEMOGRAPHICS WHERE POLL_ID = $poll;
 
--- B3. Market captured at submit time passes through to the export (story 4).
+-- B3. Market resolves on the export — survey-interaction publication (the device's
+-- [Guides-Surveys] publication_name, captured at identity refresh), payload
+-- market_name fallback. COALESCE(PUBLICATION_NAME, payload market_name).
 SELECT 'B3 market passthrough' AS ASSERTION,
        IFF(COUNT(MARKET_NAME) > 0, 'PASS', 'FAIL') AS RESULT,
        COUNT(MARKET_NAME) AS WITH_MARKET

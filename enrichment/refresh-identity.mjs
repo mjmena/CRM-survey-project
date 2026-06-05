@@ -35,7 +35,9 @@ function snowsql(args, { input } = {}) {
   return execFileSync("snowsql", [...base, ...args], {
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
-    timeout: 10 * 60 * 1000,
+    // Long-window polls (e.g. the retirement cohort segments span ~68 days) run
+    // two windowed EVENTS_412949 collapses (HEM + publication); give the scan room.
+    timeout: 25 * 60 * 1000,
     input,
   });
 }
@@ -59,8 +61,14 @@ function main() {
   const pollId = argv.find((a) => !a.startsWith("--"));
   const padIdx = argv.indexOf("--pad");
   const padDays = padIdx !== -1 ? Number(argv[padIdx + 1]) : 1;
+  // --skip-demographics: refresh only DIM_RESPONDENT_IDENTITY, not the heavy AA
+  // rebuild. Safe when nothing HEM-affecting changed (e.g. a PUBLICATION_NAME-only
+  // backfill — publication lives on the identity table, keyed by INGESTION_ID, and
+  // the HEM-keyed DIM_RESPONDENT_DEMOGRAPHICS is untouched). Lets a multi-poll
+  // backfill skip N redundant ~150s rebuilds and do one at the end if needed.
+  const skipDemographics = argv.includes("--skip-demographics");
   if (!pollId) {
-    console.error("usage: refresh-identity.mjs <POLL_ID> [--pad <days>]");
+    console.error("usage: refresh-identity.mjs <POLL_ID> [--pad <days>] [--skip-demographics]");
     process.exit(2);
   }
 
@@ -100,7 +108,13 @@ function main() {
       payloadExternalId: c.PAYLOAD_EXTERNAL_ID,
       recoveredUserId: c.RECOVERED_USER_ID,
     });
-    return { ingestionId: Number(c.INGESTION_ID), deviceId: c.DEVICE_ID ?? null, hem, hemSource };
+    return {
+      ingestionId: Number(c.INGESTION_ID),
+      deviceId: c.DEVICE_ID ?? null,
+      hem,
+      hemSource,
+      publication: c.RECOVERED_PUBLICATION ?? null, // survey-interaction publication (Market)
+    };
   });
 
   const resolved = rows.filter((r) => r.hem).length;
@@ -110,10 +124,10 @@ function main() {
   const stmts = ["BEGIN;", `DELETE FROM ${TABLE} WHERE POLL_ID = ${sqlLit(pollId)};`];
   for (let i = 0; i < rows.length; i += BATCH) {
     const values = rows.slice(i, i + BATCH).map((r) =>
-      `(${sqlLit(r.ingestionId)}, ${sqlLit(pollId)}, ${sqlLit(r.deviceId)}, ${sqlLit(r.hem)}, ${sqlLit(r.hemSource)})`
+      `(${sqlLit(r.ingestionId)}, ${sqlLit(pollId)}, ${sqlLit(r.deviceId)}, ${sqlLit(r.hem)}, ${sqlLit(r.hemSource)}, ${sqlLit(r.publication)})`
     ).join(",\n");
     stmts.push(
-      `INSERT INTO ${TABLE} (INGESTION_ID, POLL_ID, DEVICE_ID, HEM, HEM_SOURCE) VALUES\n${values};`
+      `INSERT INTO ${TABLE} (INGESTION_ID, POLL_ID, DEVICE_ID, HEM, HEM_SOURCE, PUBLICATION_NAME) VALUES\n${values};`
     );
   }
   stmts.push("COMMIT;");
@@ -127,6 +141,12 @@ function main() {
     `[${pollId}] wrote ${rows.length} rows (${resolved} resolved) — ` +
     Object.entries(bySource).map(([k, v]) => `${k}:${v}`).join(", ")
   );
+
+  if (skipDemographics) {
+    console.error(`[${pollId}] --skip-demographics: leaving DIM_RESPONDENT_DEMOGRAPHICS untouched.`);
+    console.error(`[${pollId}] done.`);
+    return;
+  }
 
   // Rebuild the materialized demographics table so the live AA join (a ~150s
   // 497M-row scan) runs here at refresh time, not on every Google Sheets sync.

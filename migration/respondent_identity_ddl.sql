@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS DIM_RESPONDENT_IDENTITY (
     DEVICE_ID     VARCHAR,                          -- poll-widget UUID; NULL on device-less responses
     HEM           VARCHAR,                          -- SHA-256 hashed email (lowercase hex); NULL when unresolved
     HEM_SOURCE    VARCHAR,                          -- 'payload' | 'events' | NULL  (how HEM was resolved, story 10)
+    PUBLICATION_NAME VARCHAR,                        -- survey-interaction publication (the Market), from the device's [Guides-Surveys] events; full name e.g. 'Miami Herald'. NULL when no guide event in window. Lives here because it falls out of the SAME windowed events scan keyed by device — it is recovered context, not identity.
     RESOLVED_AT   TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
     CONSTRAINT PK_DIM_RESPONDENT_IDENTITY PRIMARY KEY (INGESTION_ID)
 )

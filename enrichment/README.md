@@ -10,7 +10,7 @@ Amplitude/Braze (`V_AMPLITUDE_SURVEY_SYNC` is unchanged).
 
 | Module | Object | Grain | Notes |
 |---|---|---|---|
-| 1. Identity | `DIM_RESPONDENT_IDENTITY` (table) | one row per response | `HEM` (SHA-256 hashed email) + `HEM_SOURCE`. Materialized once per Poll. |
+| 1. Identity | `DIM_RESPONDENT_IDENTITY` (table) | one row per response | `HEM` (SHA-256 hashed email) + `HEM_SOURCE`, plus `PUBLICATION_NAME` (the Market — the device's `[Guides-Surveys]` publication, full name, from the same windowed scan). Materialized once per Poll. |
 | 2. Demographics | `V_RESPONDENT_DEMOGRAPHICS` (view) → `DIM_RESPONDENT_DEMOGRAPHICS` (table) | one row per HEM | Fixed non-identifying contract (below). The view's AA join is a ~150s 497M-row scan, so it's **materialized** into the table at refresh time; the export reads the table. |
 | 3. Per-row export | `V_SURVEY_RESPONSE_DEMOGRAPHICS` (view) | one row per response | Answers as an `ANSWERS` object; wide pivot done in JS. Reads the materialized table so each sync is cheap. |
 | 4. Sheets writer | report-one-survey worker (per-survey) + orchestrator fan-out (ADR-0003) | one stacked tab per poll | `build_survey_grid/transform.mjs` (pure) builds the tally + per-response grid into one `Survey <poll>` tab. |
@@ -21,7 +21,9 @@ The 55B-row `MCC_AMPLITUDE.AMPLITUDE.EVENTS_412949` scan that recovers a HEM fro
 `device_id` is **windowed to the Poll's submission range and run only at refresh time**.
 
 ```bash
-node enrichment/refresh-identity.mjs <POLL_ID> [--pad <days>]   # default pad = 1 day
+node enrichment/refresh-identity.mjs <POLL_ID> [--pad <days>] [--skip-demographics]   # default pad = 1 day
+# --skip-demographics: refresh identity only (HEM + PUBLICATION_NAME), skip the
+# ~150s AA demographics rebuild — safe for a publication-only backfill.
 ```
 
 Seam (a): the heavy windowed device→USER_ID collapse stays in SQL
