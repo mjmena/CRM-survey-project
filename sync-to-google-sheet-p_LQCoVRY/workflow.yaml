@@ -1,10 +1,14 @@
 schema: workflow/2022.04
 name: Report One Survey (worker)
 settings:
+  concurrency: 1
   error_notification: true
   lambda_memory: 2048
   lambda_timeout: 300
+  max_event_queue_size: 1000
   network: net_5Lnie3
+  rate_limit: 1
+  rate_limit_bucket_size_seconds: 5
 triggers:
 - id: dc_MDuJLd2
 steps:
@@ -199,3 +203,4 @@ steps:
       authProvisionId: apn_MGhwj7z
     spreadsheet_id: "{{steps.extract_params.$return_value.spreadsheet_id}}"
     grids: "{{steps.build_survey_grid.$return_value.grids}}"
+
