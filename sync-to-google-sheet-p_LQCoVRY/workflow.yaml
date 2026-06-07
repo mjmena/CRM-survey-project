@@ -7,8 +7,6 @@ settings:
   lambda_timeout: 300
   max_event_queue_size: 1000
   network: net_5Lnie3
-  rate_limit: 1
-  rate_limit_bucket_size_seconds: 5
 triggers:
 - id: dc_MDuJLd2
 steps:
