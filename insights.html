@@ -1,0 +1,1652 @@
+<!doctype html>
+<html lang='en'>
+  <head>
+    <!-- osano -->
+    <script src="https://cmp.osano.com/16A0CuTCdGtXx3A1C/ec63760f-40b0-4c2c-b76a-e71dda7f148e/osano.js"></script>
+    <!-- end osano -->
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Insights Hub | McClatchy Media</title>
+
+    <link rel='preconnect' href='https://fonts.googleapis.com'>
+    <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+    <link
+      href='https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&family=Noto+Serif:ital,wght@0,700;1,700&display=swap'
+      rel='stylesheet'
+    >
+
+    <style>
+      :root {
+        --c-900: #0f1521;
+        --c-800: #1c2839;
+        --c-600: #4b5972;
+        --c-300: #d0dae7;
+        --c-100: #e8ecf6;
+        --c-bg: #f5f7fa;
+        --c-wht: #ffffff;
+        --c-err: #c0392b;
+        --c-accent: #005EB8;
+        --c-accent-dark: #00499a;
+        --c-gold: #7a5808;
+        --c-gold-light: #fff8e7;
+        --c-gold-border: #e8d48a;
+
+        --color-page-bg: var(--c-bg);
+        --color-card-bg: var(--c-wht);
+        --color-text-primary: var(--c-900);
+        --color-text-muted: var(--c-600);
+        --color-border: var(--c-300);
+        --color-border-dark: var(--c-600);
+        --color-header-bg: var(--c-800);
+        --color-hero-bg: var(--c-900);
+
+        --radius: 12px;
+        --shadow: 0 4px 24px rgba(15, 21, 33, 0.1);
+        --font-sans: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-serif: 'Noto Serif', Georgia, serif;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: var(--font-sans);
+        color: var(--color-text-primary);
+        background: var(--color-page-bg);
+        min-height: 100%;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      img { display: block; }
+
+      /* ============================================================
+         MASTHEAD
+         ============================================================ */
+      .masthead-wrapper {
+        background: #fff;
+        width: 100%;
+        position: sticky;
+        top: 0;
+        z-index: 200;
+      }
+
+      .flag-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        border-bottom: 1px solid #222;
+      }
+
+      .flag-eedition {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        white-space: nowrap;
+        min-width: 180px;
+      }
+      .flag-eedition a {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #222;
+      }
+
+      .flag-logo-wrap { flex: 1; text-align: center; }
+      .flag-logo-wrap a { display: inline-block; }
+      .flag-logo-wrap img { height: 36px; width: auto; }
+      .flag-logo-wrap .logo-desktop { display: inline; }
+      .flag-logo-wrap .logo-mobile  { display: none; }
+
+      .flag-account {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        font-family: var(--font-sans);
+        min-width: 180px;
+        justify-content: flex-end;
+        white-space: nowrap;
+      }
+      .flag-account a { color: #222; }
+      .flag-account .subscribe-link { font-weight: 700; }
+      .flag-account .pipe { color: #767676; }
+
+      .flag-bottom {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        height: 44px;
+        gap: 12px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .flag-menu-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+      }
+      .flag-menu-btn svg { width: 28px; height: 28px; }
+
+      .flag-nav-links {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .flag-nav-links::-webkit-scrollbar { display: none; }
+      .flag-nav-links a {
+        font-size: 12px;
+        font-weight: 400;
+        font-family: var(--font-sans);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #222;
+        white-space: nowrap;
+      }
+      .flag-nav-links a:hover { text-decoration: underline; }
+
+      /* NAV DRAWER */
+      .main-nav {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 300px;
+        height: 100vh;
+        background: #fff;
+        z-index: 9999;
+        overflow-y: auto;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+        padding: 16px 0;
+        font-family: var(--font-sans);
+      }
+      .main-nav.open { display: block; }
+      .nav-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 9998;
+      }
+      .nav-overlay.open { display: block; }
+      .main-nav a,
+      .main-nav .nav-section-btn {
+        display: block;
+        padding: 12px 20px;
+        font-size: 14px;
+        font-family: var(--font-sans);
+        color: #222;
+        border-bottom: 1px solid #eee;
+        background: none;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+      }
+      .main-nav a:hover,
+      .main-nav .nav-section-btn:hover { background: #f5f5f5; text-decoration: none; }
+      .main-nav hr { border: none; border-top: 2px solid #222; margin: 8px 0; }
+      .nav-subsection-menu { display: none; background: #f9f9f9; }
+      .nav-subsection-menu.open { display: block; }
+      .nav-subsection-menu a { padding-left: 32px; font-size: 13px; color: #444; }
+      .nav-close-btn { display: flex; justify-content: flex-end; padding: 8px 16px 4px; }
+      .nav-close-btn button { background: none; border: none; font-size: 22px; cursor: pointer; color: #222; line-height: 1; }
+      .mobile-menu-btn { display: none; }
+
+      @media (max-width: 768px) {
+        .flag-eedition { display: none; }
+        .flag-bottom { display: none; }
+        .flag-top { padding: 8px 12px; }
+        .flag-logo-wrap { text-align: left; padding-left: 8px; }
+        .flag-logo-wrap img { height: 28px; }
+        .flag-logo-wrap .logo-desktop { display: none; }
+        .flag-logo-wrap .logo-mobile  { display: inline; }
+        .mobile-menu-btn { display: flex !important; }
+      }
+
+      /* ============================================================
+         EMAIL CAPTURE — sticky below masthead
+         ============================================================ */
+      .email-section {
+        background: var(--color-hero-bg);
+        color: var(--c-wht);
+        padding: 16px 24px 14px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
+        position: sticky;
+        top: var(--header-h, 86px);
+        z-index: 190;
+        box-shadow: 0 2px 8px rgba(15, 21, 33, 0.15);
+        transition: padding 0.3s ease;
+      }
+      .email-section > #emailInputArea,
+      .email-section > .email-notice,
+      .email-section > p,
+      .email-section > h1 { width: 100%; }
+
+      .email-section__heading {
+        font-family: var(--font-serif);
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: var(--c-wht);
+        line-height: 1.2;
+      }
+      .email-section__sub {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.65);
+        margin-bottom: 12px;
+        line-height: 1.4;
+        max-width: 480px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .email-row {
+        display: flex;
+        gap: 8px;
+        max-width: 480px;
+        margin: 0 auto 8px;
+      }
+      .email-row input[type='email'] {
+        flex: 1;
+        padding: 9px 14px;
+        font-size: 0.88rem;
+        font-family: var(--font-sans);
+        border: 1.5px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        outline: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--c-wht);
+        transition: border-color 0.2s;
+        min-width: 0;
+      }
+      .email-row input[type='email']::placeholder { color: rgba(255, 255, 255, 0.46); }
+      .email-row input[type='email']:focus { border-color: rgba(255, 255, 255, 0.6); }
+      .email-row input[type='email'].input--error { border-color: var(--c-err); }
+      .email-row button {
+        padding: 9px 18px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        color: var(--c-900);
+        background: var(--c-wht);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background 0.2s, transform 0.1s;
+      }
+      .email-row button:hover { background: var(--c-100); }
+      .email-row button:active { transform: scale(0.97); }
+      .email-row button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+      .email-error-msg {
+        color: #ffb3b3;
+        font-size: 0.82rem;
+        margin-bottom: 8px;
+        display: none;
+      }
+      .email-error-msg.is-visible { display: block; }
+
+      .email-confirmed {
+        display: none;
+        font-size: 0.88rem;
+        color: rgba(255, 255, 255, 0.75);
+        margin-top: 10px;
+      }
+      .email-confirmed.is-visible { display: block; }
+      .email-confirmed strong { color: var(--c-wht); }
+      .email-confirmed a { color: rgba(255,255,255,0.6); font-size: 0.8rem; text-decoration: underline; }
+
+      .privacy-note {
+        font-size: 0.68rem;
+        color: rgba(255, 255, 255, 0.6);
+        max-width: 440px;
+        margin: 4px auto 0;
+        line-height: 1.5;
+      }
+      .privacy-note a { color: rgba(255,255,255,0.6); font-weight: 700; text-decoration: underline; }
+
+      .email-section.is-confirmed { padding: 12px 24px; }
+      .email-section.is-confirmed .email-section__heading,
+      .email-section.is-confirmed .email-section__sub,
+      .email-section.is-confirmed #emailInputArea,
+      .email-section.is-confirmed .privacy-note { display: none; }
+      .email-section.is-confirmed .email-confirmed { margin-top: 0; font-size: 0.85rem; }
+
+      /* ============================================================
+         PAGE BODY
+         ============================================================ */
+      .page-intro {
+        max-width: 1200px;
+        margin: 36px auto 0;
+        padding: 0 20px;
+      }
+      .page-intro__eyebrow {
+        font-size: 0.68rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        text-transform: uppercase;
+        letter-spacing: 1.8px;
+        color: var(--c-accent);
+        margin-bottom: 6px;
+      }
+      .page-intro__title {
+        font-family: var(--font-serif);
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: 8px;
+        line-height: 1.2;
+      }
+      .page-intro__desc {
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+        line-height: 1.6;
+        max-width: 640px;
+      }
+
+      .email-notice {
+        max-width: 1200px;
+        margin: 16px auto 0;
+        padding: 0 20px;
+      }
+      .email-notice__inner {
+        padding: 10px 16px;
+        font-size: 0.82rem;
+        font-family: var(--font-sans);
+        color: var(--color-text-muted);
+        background: var(--c-wht);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        border-left: 3px solid var(--c-300);
+      }
+
+      /* ============================================================
+         SECTION LABELS — shared base + variant modifiers
+         ============================================================ */
+      .section-label {
+        max-width: 1200px;
+        margin: 44px auto 0;
+        padding: 0 20px;
+      }
+      .section-label h2 {
+        font-size: 0.68rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        text-transform: uppercase;
+        letter-spacing: 1.8px;
+        color: var(--color-text-muted);
+        border-bottom: 2px solid var(--c-300);
+        padding-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Premium / featured variant — gold accent */
+      .section-label--premium h2 {
+        color: var(--c-gold);
+        border-bottom-color: var(--c-gold-border);
+      }
+      .section-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 4px;
+        border: 1px solid;
+      }
+      .section-label--premium .section-badge {
+        background: var(--c-gold-light);
+        border-color: var(--c-gold-border);
+        color: var(--c-gold);
+      }
+      .section-badge--poll {
+        background: rgba(0,94,184,0.08);
+        border-color: rgba(0,94,184,0.2);
+        color: var(--c-accent);
+      }
+
+      .section-desc {
+        max-width: 1200px;
+        margin: 6px auto 0;
+        padding: 0 20px;
+        font-size: 0.82rem;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+
+      /* ============================================================
+         SURVEY GRID (shared by all four sections)
+         ============================================================ */
+      .survey-grid {
+        display: grid;
+        grid-template-columns: 1fr; /* mobile: 1-up. Counts step up at the breakpoints below. */
+        gap: 12px;
+        max-width: 1200px;
+        margin: 14px auto 0;
+        padding: 0 20px;
+        align-items: start; /* cards top-align so rows stay even and the accordion anchors cleanly */
+      }
+      @media (min-width: 600px)  { .survey-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (min-width: 900px)  { .survey-grid { grid-template-columns: repeat(3, 1fr); } }
+      @media (min-width: 1200px) { .survey-grid { grid-template-columns: repeat(4, 1fr); } }
+      .survey-grid--last {
+        padding-bottom: 60px;
+      }
+
+      /* ============================================================
+         SURVEY CARD — external link variant (Premium Surveys)
+         ============================================================ */
+      .survey-card {
+        background: var(--color-card-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: box-shadow 0.2s, border-color 0.2s;
+      }
+
+      /* Premium card gold accent strip */
+      .survey-card--premium {
+        border-top: 3px solid var(--c-gold-border);
+      }
+      .survey-card--premium:hover {
+        border-top-color: var(--c-gold);
+        box-shadow: 0 6px 28px rgba(184,134,11,0.12), var(--shadow);
+      }
+
+      .survey-card__header {
+        padding: 20px 20px 16px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      /* Clickable header for poll cards */
+      .survey-card__header--clickable {
+        cursor: pointer;
+        user-select: none;
+      }
+      .survey-card__header--clickable:hover .survey-card__name { color: var(--c-accent); }
+
+      /* Completed polls can't be re-opened — drop the clickable affordance */
+      .survey-card.is-completed .survey-card__header--clickable { cursor: default; }
+      .survey-card.is-completed .survey-card__header--clickable:hover .survey-card__name { color: var(--color-text-primary); }
+
+      .survey-card__header-left { flex: 1; }
+
+      .survey-card__tag {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        text-transform: uppercase;
+        letter-spacing: 0.9px;
+        color: var(--c-accent);
+        background: rgba(0,94,184,0.08);
+        border-radius: 4px;
+        padding: 2px 7px;
+        margin-bottom: 8px;
+      }
+      .survey-card__tag--premium {
+        color: var(--c-gold);
+        background: var(--c-gold-light);
+      }
+
+      /* Tag + est-time chip on one row above the title */
+      .survey-card__tag-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .survey-card__tag-row .survey-card__tag { margin-bottom: 0; }
+      .survey-card__meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        font-family: var(--font-sans);
+        color: var(--color-text-muted);
+        white-space: nowrap;
+      }
+
+      .survey-card__name {
+        font-size: 0.95rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        color: var(--color-text-primary);
+        margin-bottom: 6px;
+        line-height: 1.3;
+        transition: color 0.15s;
+      }
+      .survey-card__desc {
+        font-size: 0.82rem;
+        font-family: var(--font-sans);
+        color: var(--color-text-muted);
+        line-height: 1.55;
+      }
+
+      .survey-card__chevron {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        color: var(--color-text-muted);
+        transition: transform 0.3s ease, color 0.2s;
+        margin-top: 2px;
+      }
+      .survey-card.is-open .survey-card__chevron {
+        transform: rotate(180deg);
+        color: var(--c-accent);
+      }
+
+      /* Button row — shown on collapsed poll cards and always on survey cards */
+      .survey-card__btn-row {
+        padding: 0 20px 16px;
+        display: flex;
+      }
+      .survey-card.is-open .survey-card__btn-row { display: none; }
+
+      /* Survey (external link) cards: btn row always visible */
+      .survey-card--external .survey-card__btn-row { display: flex !important; }
+
+      /* Eligibility gate: [hidden] must override the cards' explicit display */
+      .survey-card[hidden], [data-hub-section][hidden] { display: none !important; }
+
+      .survey-card__btn {
+        display: inline-block;
+        padding: 9px 20px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        font-family: var(--font-sans);
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.2s, transform 0.1s;
+        letter-spacing: 0.3px;
+        background: var(--c-900);
+        color: var(--c-wht);
+        border: 2px solid var(--c-900);
+        text-decoration: none;
+      }
+      .survey-card__btn:hover { background: var(--c-800); border-color: var(--c-800); }
+      .survey-card__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .survey-card__btn:active { transform: scale(0.97); }
+
+      /* Gold button for premium survey cards */
+      .survey-card__btn--premium {
+        background: var(--c-gold);
+        border-color: var(--c-gold);
+        color: var(--c-wht);
+      }
+      .survey-card__btn--premium:hover {
+        background: #9a7009;
+        border-color: #9a7009;
+      }
+
+      /* Survey links are gated on email — locked look until confirmed */
+      .survey-card--external .survey-card__btn.is-locked,
+      .survey-card--external .survey-card__btn.is-locked:hover {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: var(--c-gold);
+        border-color: var(--c-gold);
+      }
+
+      .survey-card__btn.is-completed {
+        background: var(--c-wht);
+        color: var(--c-600);
+        border-color: var(--c-300);
+        cursor: default;
+      }
+
+      /* ============================================================
+         POLL EMBED PANEL (Quick Polls only)
+         ============================================================ */
+      .survey-card.is-open {
+        border-color: var(--c-accent);
+        box-shadow: 0 0 0 3px rgba(0,94,184,0.15), var(--shadow);
+      }
+
+      .survey-card__embed {
+        display: none;
+        padding: 0 20px 24px;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Accordion: the active poll's embed is relocated into this full-width
+         panel, which opens below the clicked card's row. The poll inside is
+         capped + centered so it reads well instead of stretching edge-to-edge. */
+      .survey-accordion {
+        grid-column: 1 / -1;
+        margin-top: 4px;
+      }
+      .survey-accordion[hidden] { display: none; }
+      /* The bordered poll box is capped + centered so the survey never exceeds ~600px */
+      .survey-accordion__box {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid var(--c-accent);
+        border-radius: var(--radius);
+        box-shadow: 0 0 0 3px rgba(0,94,184,0.12), var(--shadow);
+        background: var(--color-card-bg);
+      }
+      .survey-accordion__title {
+        font-family: var(--font-sans);
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--color-text-primary);
+        margin-bottom: 14px;
+      }
+      .survey-accordion .survey-card__embed { display: flex; padding: 0; }
+      .survey-accordion .survey-card__divider { display: none; }
+
+      .survey-card__divider {
+        border: none;
+        border-top: 1px solid var(--color-border);
+        margin: 0;
+      }
+
+      .survey-card__close-row {
+        display: flex;
+        justify-content: center;
+        margin-top: 4px;
+      }
+      .survey-card__close-btn {
+        background: none;
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        padding: 7px 18px;
+        font-size: 0.8rem;
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .survey-card__close-btn:hover {
+        background: var(--c-100);
+        border-color: var(--c-600);
+        color: var(--c-900);
+      }
+
+      /* Completed banner */
+      .survey-card__completed-banner {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: rgba(0,94,184,0.06);
+        border-top: 1px solid rgba(0,94,184,0.15);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--c-accent);
+      }
+      .survey-card.is-completed .survey-card__completed-banner { display: flex; }
+
+      /* SITE FOOTER */
+      .site-footer {
+        margin-top: 0;
+        background: var(--c-wht);
+        border-top: 1px solid var(--color-border);
+        font-family: var(--font-sans);
+        color: var(--color-text-primary);
+      }
+      .footer-inner { max-width: 1200px; margin: 0 auto; padding: 32px 24px 0; }
+      .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--color-border);
+        flex-wrap: wrap;
+      }
+      .footer-brand img { height: 28px; width: auto; }
+      .footer-brand p { font-size: 0.78rem; color: var(--color-text-muted); }
+      .footer-cols {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 28px 20px;
+        margin-bottom: 28px;
+      }
+      .footer-col-heading {
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--color-text-primary);
+        margin-bottom: 12px;
+      }
+      .footer-col a {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--color-text-muted);
+        margin-bottom: 8px;
+        transition: color 0.15s;
+      }
+      .footer-col a:hover { color: var(--c-900); }
+      .footer-legal {
+        border-top: 1px solid var(--color-border);
+        padding: 16px 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        justify-content: center;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .footer-legal a {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-text-muted);
+        transition: color 0.15s;
+      }
+      .footer-legal a:hover { color: var(--c-900); }
+
+      @media (max-width: 600px) {
+        .email-section { padding: 14px 16px 12px; }
+        .email-section.is-confirmed { padding: 6px 16px; }
+        .email-section__heading { font-size: 1rem; }
+        .email-row { flex-direction: column; }
+        .email-row button { width: 100%; }
+        .survey-grid { padding: 0 14px; }
+        .survey-grid--last { padding-bottom: 60px; }
+        .section-label, .section-desc, .email-notice, .page-intro { padding: 0 14px; }
+        .footer-cols { grid-template-columns: 1fr 1fr; }
+        .footer-inner { padding: 24px 16px 0; }
+        .footer-legal { padding: 16px; }
+      }
+      @media (max-width: 400px) {
+        .footer-cols { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- ============================================================
+         MASTHEAD
+         ============================================================ -->
+    <div class='masthead-wrapper'>
+
+      <div class='flag-top'>
+
+        <!-- Mobile hamburger -->
+        <button class='mobile-menu-btn flag-menu-btn' aria-label='Open navigation'
+          onclick="document.getElementById('mainNav').classList.add('open'); document.getElementById('navOverlay').classList.add('open');">
+          <svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 16' fill='none'>
+            <path fill-rule='evenodd' clip-rule='evenodd' d='M0 0.691406H11.2504V2.8904H0V0.691406ZM0 6.84766H8.65417V9.04665H0V6.84766ZM12.1158 13.0059H0V15.2049H12.1158V13.0059Z' fill='#222'/>
+            <path fill-rule='evenodd' clip-rule='evenodd' d='M24.2734 9.83408C24.796 8.92389 25.0954 7.86513 25.0954 6.7353C25.0954 3.33479 22.3832 0.578125 19.0375 0.578125C15.6918 0.578125 12.9796 3.33479 12.9796 6.7353C12.9796 10.1358 15.6918 12.8925 19.0375 12.8925C20.3318 12.8925 21.5313 12.4799 22.5156 11.7771L25.8715 15.188C26.2588 15.5816 26.8868 15.5816 27.2742 15.188L27.7073 14.7477C28.0947 14.354 28.0947 13.7157 27.7073 13.322L24.3139 9.87299C24.3007 9.85956 24.2872 9.84659 24.2734 9.83408ZM19.0375 10.4296C17.0301 10.4296 15.4027 8.77561 15.4027 6.7353C15.4027 4.69499 17.0301 3.041 19.0375 3.041C21.0449 3.041 22.6722 4.69499 22.6722 6.7353C22.6722 8.77561 21.0449 10.4296 19.0375 10.4296Z' fill='#222'/>
+          </svg>
+        </button>
+
+        <!-- eEdition / desktop utility link -->
+        <div class='flag-eedition'>
+          <a href='https://www.mcclatchy.com/' target='_blank'>
+            McClatchy Media
+          </a>
+        </div>
+
+        <!-- Logo -->
+        <div class='flag-logo-wrap'>
+          <a href='https://www.mcclatchy.com/' target='_blank' aria-label='McClatchy Media'>
+            <img
+              class='logo-desktop'
+              src='https://media.mcclatchy.com/email-assets/global/mmc-logos/mcclatchy-media-logo.png'
+              alt='McClatchy Media'
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+            >
+            <span style='display:none; font-size:1.1rem; font-weight:900; letter-spacing:-0.02em; color:#0f1521;'>McClatchy Media</span>
+            <img
+              class='logo-mobile'
+              src='https://media.mcclatchy.com/email-assets/global/mmc-logos/mcclatchy-media-logo.png'
+              alt='McClatchy Media'
+            >
+          </a>
+        </div>
+
+        <!-- Account -->
+        <div class='flag-account'>
+          <a href='https://www.mcclatchy.com/about/' target='_blank'>About</a>
+          <span class='pipe'>|</span>
+          <a href='https://www.mcclatchy.com/contact/' target='_blank' class='subscribe-link'>Contact</a>
+        </div>
+
+      </div><!-- /flag-top -->
+
+      <!-- Bottom nav row (desktop) -->
+      <div class='flag-bottom'>
+        <button class='flag-menu-btn' aria-label='Open navigation'
+          onclick="document.getElementById('mainNav').classList.add('open'); document.getElementById('navOverlay').classList.add('open');">
+          <svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 16' fill='none'>
+            <path fill-rule='evenodd' clip-rule='evenodd' d='M0 0.691406H11.2504V2.8904H0V0.691406ZM0 6.84766H8.65417V9.04665H0V6.84766ZM12.1158 13.0059H0V15.2049H12.1158V13.0059Z' fill='#222'/>
+            <path fill-rule='evenodd' clip-rule='evenodd' d='M24.2734 9.83408C24.796 8.92389 25.0954 7.86513 25.0954 6.7353C25.0954 3.33479 22.3832 0.578125 19.0375 0.578125C15.6918 0.578125 12.9796 3.33479 12.9796 6.7353C12.9796 10.1358 15.6918 12.8925 19.0375 12.8925C20.3318 12.8925 21.5313 12.4799 22.5156 11.7771L25.8715 15.188C26.2588 15.5816 26.8868 15.5816 27.2742 15.188L27.7073 14.7477C28.0947 14.354 28.0947 13.7157 27.7073 13.322L24.3139 9.87299C24.3007 9.85956 24.2872 9.84659 24.2734 9.83408ZM19.0375 10.4296C17.0301 10.4296 15.4027 8.77561 15.4027 6.7353C15.4027 4.69499 17.0301 3.041 19.0375 3.041C21.0449 3.041 22.6722 4.69499 22.6722 6.7353C22.6722 8.77561 21.0449 10.4296 19.0375 10.4296Z' fill='#222'/>
+          </svg>
+        </button>
+        <nav class='flag-nav-links' aria-label='Site sections'>
+          <a href='https://www.mcclatchy.com/' target='_blank'>Home</a>
+          <a href='https://www.mcclatchy.com/our-impact/' target='_blank'>Our Impact</a>
+          <a href='https://www.mcclatchy.com/about/' target='_blank'>About</a>
+          <a href='https://www.mcclatchy.com/contact/' target='_blank'>Contact</a>
+          <a href='https://www.mcclatchy.com/privacy-policy/' target='_blank'>Privacy</a>
+        </nav>
+      </div>
+
+    </div><!-- /masthead-wrapper -->
+
+    <!-- Nav overlay -->
+    <div class='nav-overlay' id='navOverlay'
+      onclick="document.getElementById('mainNav').classList.remove('open'); document.getElementById('navOverlay').classList.remove('open');">
+    </div>
+
+    <!-- Nav drawer -->
+    <nav class='main-nav' id='mainNav' aria-label='Main navigation'>
+      <div class='nav-close-btn'>
+        <button aria-label='Close navigation'
+          onclick="document.getElementById('mainNav').classList.remove('open'); document.getElementById('navOverlay').classList.remove('open');">
+          ✕
+        </button>
+      </div>
+      <a href='https://www.mcclatchy.com/' target='_blank'>Home</a>
+      <a href='https://www.mcclatchy.com/our-impact/' target='_blank'>Our Impact</a>
+      <a href='https://www.mcclatchy.com/about/' target='_blank'>About</a>
+      <a href='https://www.mcclatchy.com/contact/' target='_blank'>Contact Us</a>
+      <hr>
+      <a href='https://www.mcclatchy.com/privacy-policy/' target='_blank'>Privacy Policy</a>
+      <a href='https://www.mcclatchy.com/terms-of-service' target='_blank'>Terms of Service</a>
+    </nav>
+
+    <!-- ============================================================
+         EMAIL CAPTURE — sticky
+         ============================================================ -->
+    <section class='email-section' aria-label='Email address entry'>
+      <h1 class='email-section__heading'>Share Your Voice</h1>
+      <p class='email-section__sub'>
+        Enter your email to unlock our surveys. Your input is important to us.
+      </p>
+
+      <div id='emailInputArea'>
+        <div class='email-row'>
+          <input
+            type='email'
+            id='bz_emailAddress'
+            placeholder='you@example.com'
+            value=''
+            autocomplete='email'
+            aria-label='Your email address'
+          >
+          <button type='button' id='pageEmailBtn'>Confirm Email</button>
+        </div>
+        <p class='email-error-msg' id='pageEmailError' role='alert'>Please enter a valid email address.</p>
+        <p class='privacy-note'>
+          By submitting, I agree to the
+          <a href='https://www.mcclatchy.com/privacy-policy/' target='_blank'>Privacy Policy</a>
+          and
+          <a href='https://www.mcclatchy.com/terms-of-service' target='_blank'>Terms of Service</a>. Responses are kept confidential.
+        </p>
+      </div>
+
+      <p class='email-confirmed' id='emailConfirmed'>
+        Responding as: <strong id='emailConfirmedValue'></strong>
+        &nbsp;&mdash;&nbsp;
+        <a href='#' id='changeEmailLink'>Change</a>
+      </p>
+    </section>
+
+    <div class='email-notice' id='emailNotice'>
+      <div class='email-notice__inner'>
+        Please confirm your email address above to unlock and complete the surveys below.
+      </div>
+    </div>
+
+    <!-- ============================================================
+         PAGE INTRO
+         ============================================================ -->
+    <div class='page-intro'>
+      <div class='page-intro__eyebrow'>McClatchy Media · Trend Hunter</div>
+      <div class='page-intro__title'>Consumer Insights Panel</div>
+      <p class='page-intro__desc'>Your opinions matter. Complete the surveys below to help us understand our readers better and join our panel of valued participants.</p>
+    </div>
+
+
+    <!-- ============================================================
+         SECTION 1 — FEATURED PREMIUM SURVEYS
+         Catalog: crm_prism_external_surveys (featured = true)
+         Each row needs: title, description, survey_url, feature_flag
+         ============================================================ -->
+    {% assign featured_survey_rows = "" | split: "" %}
+    {% catalog_selection_items crm_prism_external_surveys featured_premium_surveys :rerender %}
+    {% if items %}{% assign featured_survey_rows = items %}{% endif %}
+    {% assign featured_survey_count = featured_survey_rows | size %}
+
+    {% if featured_survey_count > 0 %}
+    <div class='hub-section' data-hub-section='featured-surveys'>
+    <div class='section-label section-label--premium'>
+      <h2>
+        Featured Premium Surveys
+        <span class='section-badge'>⭐ Featured</span>
+      </h2>
+    </div>
+    <p class='section-desc'>In-depth surveys selected by hand for you. Your detailed feedback shapes our most important decisions.</p>
+
+      <div class='survey-grid'>
+        {% for survey_row in featured_survey_rows %}
+          <div class='survey-card survey-card--premium survey-card--external' data-flag='{{ survey_row.feature_flag }}'>
+            <div class='survey-card__header'>
+              <div class='survey-card__header-left'>
+                <div class='survey-card__tag survey-card__tag--premium'>Premium Survey</div>
+                <div class='survey-card__name'>{{ survey_row.title }}</div>
+                <div class='survey-card__desc'>{{ survey_row.description }}</div>
+              </div>
+            </div>
+            <div class='survey-card__btn-row'>
+              <a
+                class='survey-card__btn survey-card__btn--premium'
+                href='{{ survey_row.survey_url }}'
+                target='_blank'
+                rel='noopener noreferrer'
+                onclick='handleSurveyLinkClick(event, this)'
+              >Take Survey →</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div><!-- /hub-section featured-surveys -->
+    {% endif %}
+
+
+    <!-- ============================================================
+         SECTION 2 — PREMIUM SURVEYS (non-featured)
+         Catalog: crm_prism_external_surveys (featured = false)
+         ============================================================ -->
+    {% assign all_survey_rows = "" | split: "" %}
+    {% catalog_selection_items crm_prism_external_surveys all_premium_surveys :rerender %}
+    {% if items %}{% assign all_survey_rows = items %}{% endif %}
+    {% assign all_survey_count = all_survey_rows | size %}
+
+    {% if all_survey_count > 0 %}
+    <div class='hub-section' data-hub-section='premium-surveys'>
+    <div class='section-label section-label--premium'>
+      <h2>Premium Surveys</h2>
+    </div>
+    <p class='section-desc'>Longer-form surveys that dive deeper into topics affecting readers like you. Each takes 3–5 minutes.</p>
+
+      <div class='survey-grid'>
+        {% for survey_row in all_survey_rows %}
+          <div class='survey-card survey-card--premium survey-card--external' data-flag='{{ survey_row.feature_flag }}'>
+            <div class='survey-card__header'>
+              <div class='survey-card__header-left'>
+                <div class='survey-card__tag survey-card__tag--premium'>Premium Survey</div>
+                <div class='survey-card__name'>{{ survey_row.title }}</div>
+                <div class='survey-card__desc'>{{ survey_row.description }}</div>
+              </div>
+            </div>
+            <div class='survey-card__btn-row'>
+              <a
+                class='survey-card__btn survey-card__btn--premium'
+                href='{{ survey_row.survey_url }}'
+                target='_blank'
+                rel='noopener noreferrer'
+                onclick='handleSurveyLinkClick(event, this)'
+              >Take Survey →</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div><!-- /hub-section premium-surveys -->
+    {% endif %}
+
+
+    <!-- ============================================================
+         SECTION 3 — FEATURED QUICK POLLS
+         Catalog: crm_prism_surveys (featured = true)
+         Polls open inline on the page via the existing embed mechanism.
+         ============================================================ -->
+    {% assign featured_poll_rows = "" | split: "" %}
+    {% catalog_selection_items crm_prism_surveys featured_polls :rerender %}
+    {% if items %}{% assign featured_poll_rows = items %}{% endif %}
+    {% assign featured_poll_count = featured_poll_rows | size %}
+
+    {% if featured_poll_count > 0 %}
+    <div class='section-label'>
+      <h2>
+        Featured Quick Polls
+        <span class='section-badge section-badge--poll'>⭐ Featured</span>
+      </h2>
+    </div>
+    <p class='section-desc'>Hand-picked polls for you. Each takes under a minute.</p>
+
+      <div class='survey-grid'>
+        {% for poll_row in featured_poll_rows %}
+          {% assign poll_variant = poll_row.id %}
+          {% assign card_n = forloop.index | prepend: 'fp-' %}
+
+          <div class='survey-card' id='survey-card-{{card_n}}' data-survey-id='{{poll_row.id}}'>
+            <div class='survey-card__header survey-card__header--clickable' onclick='toggleSurvey("{{card_n}}")' role='button' tabindex='0' aria-expanded='false' aria-controls='survey-embed-{{card_n}}'>
+              <div class='survey-card__header-left'>
+                <div class='survey-card__tag-row'>
+                  <span class='survey-card__tag'>Featured Poll</span>
+                  {% if poll_row.est_time %}<span class='survey-card__meta'>&#9201; {{ poll_row.est_time }}</span>{% endif %}
+                </div>
+                <div class='survey-card__name'>{{ poll_row.title }}</div>
+                {% if poll_row.description %}<div class='survey-card__desc'>{{ poll_row.description }}</div>{% endif %}
+              </div>
+              <svg class='survey-card__chevron' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>
+            </div>
+            <div class='survey-card__btn-row'>
+              <button class='survey-card__btn' id='survey-btn-{{card_n}}' onclick='toggleSurvey("{{card_n}}")' disabled>Take Poll</button>
+            </div>
+            <div class='survey-card__embed' id='survey-embed-{{card_n}}'>
+              <hr class='survey-card__divider'>
+              {{content_blocks.${prism_template_for_landingpage}}}
+              <div class='survey-card__close-row'><button class='survey-card__close-btn' onclick='closeSurvey("{{card_n}}")'>Close Poll ↑</button></div>
+            </div>
+            <div class='survey-card__completed-banner'>
+              <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'><polyline points='20 6 9 17 4 12'/></svg>
+              Response recorded — thank you!
+            </div>
+          </div>
+
+        {% endfor %}
+      </div>
+    {% endif %}
+
+
+    <!-- ============================================================
+         SECTION 4 — QUICK POLLS (non-featured)
+         Catalog: crm_prism_surveys (featured = false)
+         Re-scope active_surveys selection in Braze to filter featured = false
+         so featured polls don't double-render here.
+         ============================================================ -->
+    {% assign all_polls = "" | split: "" %}
+    {% catalog_selection_items crm_prism_surveys active_surveys :rerender %}
+    {% if items %}{% assign all_polls = items %}{% endif %}
+    {% assign all_poll_count = all_polls | size %}
+
+    {% if all_poll_count > 0 %}
+    <div class='section-label'>
+      <h2>Quick Polls</h2>
+    </div>
+    <p class='section-desc'>Fast, 1-2 question polls. Each takes less than a minute to complete.</p>
+
+      <div class='survey-grid survey-grid--last'>
+        {% for poll_row in all_polls %}
+          {% assign poll_variant = poll_row.id %}
+          {% assign card_n = forloop.index %}
+
+          <div class='survey-card' id='survey-card-{{card_n}}' data-survey-id='{{poll_row.id}}'>
+            <div class='survey-card__header survey-card__header--clickable' onclick='toggleSurvey({{card_n}})' role='button' tabindex='0' aria-expanded='false' aria-controls='survey-embed-{{card_n}}'>
+              <div class='survey-card__header-left'>
+                <div class='survey-card__tag-row'>
+                  <span class='survey-card__tag'>Quick Poll</span>
+                  {% if poll_row.est_time %}<span class='survey-card__meta'>&#9201; {{ poll_row.est_time }}</span>{% endif %}
+                </div>
+                <div class='survey-card__name'>{{ poll_row.title }}</div>
+                {% if poll_row.description %}<div class='survey-card__desc'>{{ poll_row.description }}</div>{% endif %}
+              </div>
+              <svg class='survey-card__chevron' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>
+            </div>
+            <div class='survey-card__btn-row'>
+              <button class='survey-card__btn' id='survey-btn-{{card_n}}' onclick='toggleSurvey({{card_n}})' disabled>Take Poll</button>
+            </div>
+            <div class='survey-card__embed' id='survey-embed-{{card_n}}'>
+              <hr class='survey-card__divider'>
+              {{content_blocks.${prism_template_for_landingpage}}}
+              <div class='survey-card__close-row'><button class='survey-card__close-btn' onclick='closeSurvey({{card_n}})'>Close Poll ↑</button></div>
+            </div>
+            <div class='survey-card__completed-banner'>
+              <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'><polyline points='20 6 9 17 4 12'/></svg>
+              Response recorded — thank you!
+            </div>
+          </div>
+
+        {% endfor %}
+      </div>
+    {% endif %}
+
+
+    <!-- ============================================================
+         FOOTER
+         ============================================================ -->
+    <footer class='site-footer'>
+      <div class='footer-inner'>
+        <div class='footer-brand'>
+          <img src='https://media.mcclatchy.com/email-assets/global/mmc-logos/mcclatchy-media-logo.png' alt='McClatchy Media'
+            onerror="this.style.display='none';">
+          <p>McClatchy Media — Trusted Local Journalism and Media</p>
+        </div>
+        <div class='footer-cols'>
+          <div class='footer-col'>
+            <div class='footer-col-heading'>About</div>
+            <a href='https://www.mcclatchy.com/about/' target='_blank'>About McClatchy</a>
+            <a href='https://www.mcclatchy.com/our-impact/' target='_blank'>Our Impact</a>
+            <a href='https://www.mcclatchy.com/contact/' target='_blank'>Contact Us</a>
+          </div>
+          <div class='footer-col'>
+            <div class='footer-col-heading'>Advertising</div>
+            <a href='https://business.mcclatchy.com/' target='_blank'>Advertise with Us</a>
+            <a href='https://www.winwithmcclatchy.com/' target='_blank'>Marketing Solutions</a>
+          </div>
+          <div class='footer-col'>
+            <div class='footer-col-heading'>Network</div>
+            <a href='https://www.miamiherald.com/' target='_blank'>Miami Herald</a>
+            <a href='https://www.kansascity.com/' target='_blank'>Kansas City Star</a>
+            <a href='https://www.sacbee.com/' target='_blank'>Sacramento Bee</a>
+            <a href='https://www.islandpacket.com/' target='_blank'>Island Packet</a>
+          </div>
+        </div>
+      </div>
+      <div class='footer-legal'>
+        <a href='https://www.mcclatchy.com/privacy-policy/' target='_blank'>Privacy Policy</a>
+        <a href='https://my.datasubject.com/16A0CuTCdGtXx3A1C/22280' target='_blank'>Your Privacy Choices</a>
+        <a href='https://www.mcclatchy.com/terms-of-service' target='_blank'>Terms of Service</a>
+        <span style='font-size:0.68rem; color:var(--color-text-muted);'>&copy; 2026 McClatchy Media Company</span>
+      </div>
+    </footer>
+
+    <!-- ============================================================
+         JAVASCRIPT
+         ============================================================ -->
+    <script>
+      (function () {
+        'use strict';
+
+        /* ── State ── */
+        var confirmedEmail = '';
+        var hashedEmailId = '';
+        var bridgeReady = false;
+        var completedSurveys = Object.create(null);
+
+        window.__pp_external_id_resolver = function () { return hashedEmailId; };
+
+        function sha256Hex(input) {
+          var enc = new TextEncoder().encode(String(input || '').trim().toLowerCase());
+          return crypto.subtle.digest('SHA-256', enc).then(function (buf) {
+            return Array.from(new Uint8Array(buf))
+              .map(function (b) { return b.toString(16).padStart(2, '0'); })
+              .join('');
+          });
+        }
+
+        /* ── DOM refs ── */
+        var pageEmailInput      = document.getElementById('bz_emailAddress');
+        var pageEmailBtn        = document.getElementById('pageEmailBtn');
+        var pageEmailError      = document.getElementById('pageEmailError');
+        var emailInputArea      = document.getElementById('emailInputArea');
+        var emailConfirmed      = document.getElementById('emailConfirmed');
+        var emailConfirmedValue = document.getElementById('emailConfirmedValue');
+        var changeEmailLink     = document.getElementById('changeEmailLink');
+        var emailNotice         = document.getElementById('emailNotice');
+        var siteHeader          = document.querySelector('.masthead-wrapper');
+        var emailSection        = document.querySelector('.email-section');
+
+        /* ── Header height sync ── */
+        function syncHeaderHeight() {
+          document.documentElement.style.setProperty('--header-h', siteHeader.offsetHeight + 'px');
+        }
+        syncHeaderHeight();
+        window.addEventListener('resize', syncHeaderHeight);
+
+        /* ── Braze bridge ── */
+        function markBridgeReady() { bridgeReady = true; }
+        if (window.lpBridge && (window.brazeBridge || window.appboyBridge)) {
+          markBridgeReady();
+        } else {
+          ['yz_brazebridge_ready', 'ab.BridgeReady'].forEach(function (e) {
+            window.addEventListener(e, markBridgeReady, { once: true });
+            document.addEventListener(e, markBridgeReady, { once: true });
+          });
+        }
+
+        function whenBridgeReady(fn) {
+          if (bridgeReady && window.lpBridge) { fn(); return; }
+          ['yz_brazebridge_ready', 'ab.BridgeReady'].forEach(function (e) {
+            window.addEventListener(e, fn, { once: true });
+            document.addEventListener(e, fn, { once: true });
+          });
+        }
+
+        /* ── Button/link state helpers ── */
+        function eachPollButton(fn) {
+          // Only target poll cards (not external survey link cards)
+          document.querySelectorAll('.survey-card:not(.survey-card--external) .survey-card__btn').forEach(fn);
+        }
+        function enablePollButtons() {
+          eachPollButton(function (btn) {
+            if (!btn.classList.contains('is-completed')) btn.disabled = false;
+          });
+        }
+        function disablePollButtons() {
+          eachPollButton(function (btn) { btn.disabled = true; });
+        }
+        function setSurveyLinksLocked(locked) {
+          // External survey links are gated on email confirmation, like polls.
+          document.querySelectorAll('.survey-card--external .survey-card__btn').forEach(function (a) {
+            a.classList.toggle('is-locked', locked);
+            a.setAttribute('aria-disabled', locked ? 'true' : 'false');
+          });
+        }
+        setSurveyLinksLocked(!confirmedEmail);
+
+        function nudgeEmailConfirm() {
+          emailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          var input = document.getElementById('bz_emailAddress');
+          if (input) {
+            input.focus();
+            input.style.transition = 'border-color 0.2s';
+            input.style.borderColor = '#ffb347';
+            setTimeout(function () { input.style.borderColor = ''; }, 1800);
+          }
+        }
+
+        /* ── Email validation ── */
+        function isEmailValid(email) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+        }
+
+        function confirmEmail() {
+          var email = pageEmailInput.value.trim();
+          if (!isEmailValid(email)) {
+            pageEmailError.classList.add('is-visible');
+            pageEmailInput.classList.add('input--error');
+            return;
+          }
+          pageEmailError.classList.remove('is-visible');
+          pageEmailInput.classList.remove('input--error');
+          pageEmailBtn.disabled = true;
+          pageEmailBtn.textContent = 'Confirming\u2026';
+          confirmedEmail = email;
+
+          whenBridgeReady(function () {
+            try {
+              if (window.lpBridge && window.lpBridge.setUserEmail) {
+                window.lpBridge.setUserEmail(email);
+              }
+              if (window.lpBridge && typeof window.lpBridge.requestImmediateDataFlush === 'function') {
+                window.lpBridge.requestImmediateDataFlush();
+              }
+            } catch (e) {}
+          });
+
+          showConfirmedEmailUi(email);
+        }
+
+        function autoConfirmUser(email) {
+          if (confirmedEmail) return;
+          confirmedEmail = email;
+          pageEmailInput.value = email;
+          showConfirmedEmailUi(email);
+        }
+
+        function showConfirmedEmailUi(email) {
+          emailInputArea.style.display = 'none';
+          emailConfirmedValue.textContent = email;
+          emailConfirmed.classList.add('is-visible');
+          emailNotice.style.display = 'none';
+          enablePollButtons();
+          setSurveyLinksLocked(false);
+          emailSection.classList.add('is-confirmed');
+          syncHeaderHeight();
+          refreshCompletionSoon();
+
+          sha256Hex(email).then(function (hex) { hashedEmailId = hex; })
+            .catch(function () { hashedEmailId = ''; });
+        }
+
+        changeEmailLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          confirmedEmail = '';
+          hashedEmailId = '';
+          emailConfirmed.classList.remove('is-visible');
+          emailInputArea.style.display = '';
+          emailNotice.style.display = '';
+          pageEmailBtn.disabled = false;
+          pageEmailBtn.textContent = 'Confirm Email';
+          emailSection.classList.remove('is-confirmed');
+          disablePollButtons();
+          setSurveyLinksLocked(true);
+          syncHeaderHeight();
+          refreshCompletionSoon();
+        });
+
+        pageEmailBtn.addEventListener('click', confirmEmail);
+        pageEmailInput.addEventListener('keypress', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); confirmEmail(); }
+        });
+        pageEmailInput.addEventListener('input', function () {
+          pageEmailError.classList.remove('is-visible');
+          pageEmailInput.classList.remove('input--error');
+        });
+
+        /* ── yz_nlprefs_fetched ── */
+        function onPrefsFetched(evt) {
+          var prefs = (evt && (evt.preferenceProps || evt.detail)) || {};
+          if (!confirmedEmail && prefs.encoded_email) {
+            try {
+              var decoded = atob(prefs.encoded_email);
+              if (isEmailValid(decoded)) { autoConfirmUser(decoded); }
+            } catch (e) {}
+          }
+        }
+        window.addEventListener('yz_nlprefs_fetched', onPrefsFetched);
+        document.addEventListener('yz_nlprefs_fetched', onPrefsFetched);
+
+        /* ── Braze bridge email pre-fill ── */
+        function onBridgeReady() {
+          var b = window.brazeBridge || window.appboyBridge;
+          if (b && b.getUser && typeof b.getUser().getEmail === 'function') {
+            var email = b.getUser().getEmail();
+            if (email && isEmailValid(email)) {
+              autoConfirmUser(email);
+            }
+          }
+        }
+        if (window.brazeBridge || window.appboyBridge) {
+          onBridgeReady();
+        } else {
+          window.addEventListener('ab.BridgeReady', onBridgeReady);
+          document.addEventListener('ab.BridgeReady', onBridgeReady);
+        }
+
+        /* ── Survey external link handler ──
+           Survey cards link out to external pages. We still gate them behind
+           the email confirmation so the external page can receive the email as
+           a query param if needed. If email not confirmed, block navigation and
+           nudge instead.
+        */
+        window.handleSurveyLinkClick = function (evt, anchor) {
+          if (!confirmedEmail) {
+            evt.preventDefault();
+            nudgeEmailConfirm();
+            return;
+          }
+          // Append the reader's hashed email (HEM) so the external Qualtrics
+          // survey can capture it as embedded data and join the response back on
+          // the same key the pipeline uses (see ADR-0005). Never send plaintext.
+          // HEM is computed async after confirm — if it isn't ready yet, omit the
+          // param rather than sending a blank value.
+          if (!hashedEmailId) return;
+          try {
+            var url = new URL(anchor.href);
+            url.searchParams.set('hem', hashedEmailId);
+            anchor.href = url.toString();
+          } catch (e) {}
+        };
+
+        /* ── Poll accordion ──
+           The clicked card stays in the grid; its embed is moved into a
+           full-width panel inserted right after the last card in that card's
+           row, so the poll opens below the row and the card never jumps. */
+        var activePollCard = null;
+        function accordionPanelFor(grid) {
+          var p = grid.querySelector(':scope > .survey-accordion');
+          if (!p) {
+            p = document.createElement('div');
+            p.className = 'survey-accordion';
+            p.hidden = true;
+            grid.appendChild(p);
+          }
+          return p;
+        }
+        function positionPanel(card, panel, grid) {
+          var cards = Array.prototype.slice.call(grid.querySelectorAll(':scope > .survey-card'));
+          var top = card.offsetTop;
+          var rowCards = cards.filter(function (c) { return Math.abs(c.offsetTop - top) < 2; });
+          (rowCards[rowCards.length - 1] || card).after(panel);
+        }
+        function closeActivePoll() {
+          if (!activePollCard) return;
+          var card = activePollCard;
+          var grid = card.closest('.survey-grid');
+          var panel = grid && grid.querySelector(':scope > .survey-accordion');
+          if (panel) {
+            var embed = panel.querySelector('.survey-card__embed');
+            if (embed) card.appendChild(embed); // hidden again once back in the card
+            panel.hidden = true;
+          }
+          card.classList.remove('is-open');
+          var h = card.querySelector('.survey-card__header');
+          if (h) h.setAttribute('aria-expanded', 'false');
+          activePollCard = null;
+        }
+        function openPoll(card) {
+          closeActivePoll();
+          var grid = card.closest('.survey-grid');
+          if (!grid) return;
+          var panel = accordionPanelFor(grid);
+          positionPanel(card, panel, grid);
+          var embed = card.querySelector('.survey-card__embed');
+          var nameEl = card.querySelector('.survey-card__name');
+          panel.textContent = '';
+          var box = document.createElement('div');
+          box.className = 'survey-accordion__box';
+          var title = (nameEl && nameEl.textContent || '').trim();
+          if (title) {
+            var t = document.createElement('div');
+            t.className = 'survey-accordion__title';
+            t.textContent = title;
+            box.appendChild(t);
+          }
+          if (embed) box.appendChild(embed);
+          panel.appendChild(box);
+          panel.hidden = false;
+          card.classList.add('is-open');
+          var header = card.querySelector('.survey-card__header');
+          if (header) header.setAttribute('aria-expanded', 'true');
+          activePollCard = card;
+        }
+        window.toggleSurvey = function (id) {
+          if (!confirmedEmail) { nudgeEmailConfirm(); return; }
+          var card = document.getElementById('survey-card-' + id);
+          if (!card) return;
+          if (card.classList.contains('is-open')) { closeActivePoll(); return; }
+          if (card.classList.contains('is-completed')) return; // can't reopen completed
+          openPoll(card);
+        };
+        window.closeSurvey = function () { closeActivePoll(); };
+        // If the grid reflows (column count changes), re-anchor the open panel.
+        window.addEventListener('resize', function () {
+          if (!activePollCard) return;
+          var grid = activePollCard.closest('.survey-grid');
+          var panel = grid && grid.querySelector(':scope > .survey-accordion');
+          if (panel) positionPanel(activePollCard, panel, grid);
+        });
+
+        /* ── Content block event bridge ──
+           Card titles now render server-side from the catalog `title` field, so
+           there's no longer a prism-poll-ready listener filling them in. The
+           widget still fires that event; we just don't need to react to it. */
+        document.addEventListener('prism-poll-submitted', function (e) {
+          // The poll lives in the accordion panel (not inside the card), so fall
+          // back to the active card when the event can't resolve one directly.
+          var card = e.target.closest('.survey-card') || activePollCard;
+          if (!card) return;
+          card.classList.add('is-completed');
+          if (e.detail && e.detail.pollId) {
+            completedSurveys[e.detail.pollId] = e.detail.answers;
+          }
+          var btn = card.querySelector('.survey-card__btn');
+          if (btn) {
+            btn.textContent = '✓ Completed';
+            btn.classList.add('is-completed');
+            btn.disabled = true;
+          }
+        });
+
+        /* ── Keyboard accessibility for poll card headers ── */
+        document.querySelectorAll('.survey-card__header--clickable').forEach(function (header) {
+          header.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              header.click();
+            }
+          });
+        });
+
+        /* ── Persisted completion from Amplitude (crm_surveys_completed) ──
+           The platform getUserProperty() wrapper resolves the current Amplitude
+           identity and returns an array of completed survey/poll ids. We mark
+           any poll card whose data-survey-id is in that array. The identity —
+           and therefore the array — changes when the user confirms or changes
+           their email, so we re-read and reconcile on those events. Polls
+           completed in-session always stay marked. Ids that match no card
+           (legacy *_iam surveys) are ignored. */
+        function normalizeId(id) {
+          return String(id || '').replace(/_segment-[a-z0-9]+$/i, '');
+        }
+        function completionBridge() {
+          var c = [window.brazeBridge, window.appboyBridge, window.lpBridge];
+          for (var i = 0; i < c.length; i++) {
+            if (c[i] && typeof c[i].getUserProperty === 'function') return c[i];
+          }
+          return null;
+        }
+        function toCompletedSet(raw) {
+          var arr = [];
+          if (Array.isArray(raw)) {
+            arr = raw;
+          } else if (typeof raw === 'string' && raw.trim()) {
+            var s = raw.trim();
+            if (s.charAt(0) === '[') { try { var p = JSON.parse(s); if (Array.isArray(p)) arr = p; } catch (e) {} }
+            if (!arr.length) arr = s.split(',');
+          }
+          var set = Object.create(null);
+          arr.forEach(function (v) {
+            var id = String(v).trim();
+            if (!id) return;
+            set[id] = true;
+            set[normalizeId(id)] = true;
+          });
+          return set;
+        }
+        function markCompletedCard(card) {
+          card.classList.add('is-completed');
+          var btn = card.querySelector('.survey-card__btn');
+          if (btn) {
+            if (btn.getAttribute('data-orig-label') == null) btn.setAttribute('data-orig-label', btn.textContent);
+            btn.textContent = '✓ Completed';
+            btn.classList.add('is-completed');
+            btn.disabled = true;
+          }
+        }
+        function unmarkCompletedCard(card) {
+          card.classList.remove('is-completed');
+          var btn = card.querySelector('.survey-card__btn');
+          if (btn) {
+            btn.classList.remove('is-completed');
+            btn.textContent = btn.getAttribute('data-orig-label') || 'Take Poll';
+            btn.disabled = !confirmedEmail;
+          }
+        }
+        function applyCompletion(set) {
+          var hasProp = false, matched = 0, k;
+          for (k in set) { hasProp = true; break; }
+          document.querySelectorAll('.survey-card[data-survey-id]').forEach(function (card) {
+            var id = card.getAttribute('data-survey-id');
+            var inProp = !!(set[id] || set[normalizeId(id)]);
+            var inSession = completedSurveys[id] !== undefined;
+            if (inProp) matched++;
+            if (inProp || inSession) markCompletedCard(card); else unmarkCompletedCard(card);
+          });
+          if (hasProp && matched === 0) {
+            try { console.warn('[prism] crm_surveys_completed has values but none match a poll card on this page — check id conventions.'); } catch (e) {}
+          }
+        }
+        function readCompletion() {
+          var b = completionBridge();
+          if (!b) return;
+          try {
+            Promise.resolve(b.getUserProperty('crm_surveys_completed'))
+              .then(function (v) { applyCompletion(toCompletedSet(v)); })
+              .catch(function () {});
+          } catch (e) {}
+        }
+        /* ── Per-user survey eligibility (Amplitude flag tokens) ──
+           Each external survey card carries data-flag='<flag-key>'. Eligibility
+           is the `[Experiment] <flag-key>` token (set on the surveyfast-*
+           experiment flag): a serving variant like "on"/"on-le" = eligible;
+           undefined/null/empty/off/control = not. Ineligible cards are hidden,
+           then any survey section with no visible card is hidden entirely.
+           (Catalog-empty sections don't render server-side at all — see the
+           {% if ..._count > 0 %} guards around each section — so this only
+           handles the flag-empty case.) Identity-bound — re-checked on email
+           confirm/change. */
+        function isEligibleToken(v) {
+          if (v == null) return false;
+          var s = String(v).trim().toLowerCase();
+          if (!s) return false;
+          return s !== 'off' && s !== 'control' && s !== 'false' && s !== 'no';
+        }
+        function reconcileHubSections() {
+          document.querySelectorAll('[data-hub-section]').forEach(function (sec) {
+            var cards = sec.querySelectorAll('.survey-card');
+            if (!cards.length) { sec.hidden = false; return; } // no cards rendered (shouldn't happen — catalog-empty sections are dropped server-side)
+            var anyVisible = Array.prototype.some.call(cards, function (c) { return !c.hidden; });
+            sec.hidden = !anyVisible;
+          });
+        }
+        function applyEligibility() {
+          var b = completionBridge();
+          if (!b) return;
+          var cards = [];
+          document.querySelectorAll('.survey-card[data-flag]').forEach(function (c) {
+            if (c.getAttribute('data-flag')) cards.push(c);
+          });
+          if (!cards.length) return;
+          Promise.all(cards.map(function (card) {
+            var flag = card.getAttribute('data-flag');
+            try {
+              return Promise.resolve(b.getUserProperty('[Experiment] ' + flag)).then(
+                function (v) { card.hidden = !isEligibleToken(v); },
+                function () { card.hidden = true; }
+              );
+            } catch (e) { card.hidden = true; return Promise.resolve(); }
+          })).then(reconcileHubSections, reconcileHubSections);
+        }
+        function refreshCompletionSoon() {
+          // Identity/tokens can lag behind setUserEmail + flush; re-check twice.
+          setTimeout(function () { readCompletion(); applyEligibility(); }, 1500);
+          setTimeout(function () { readCompletion(); applyEligibility(); }, 3500);
+        }
+        whenBridgeReady(readCompletion);
+        whenBridgeReady(applyEligibility);
+        setTimeout(function () { readCompletion(); applyEligibility(); }, 1200);
+        setTimeout(function () { readCompletion(); applyEligibility(); }, 3000);
+
+      })();
+    </script>
+  </body>
+</html>
