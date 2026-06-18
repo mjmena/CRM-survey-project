@@ -2,6 +2,7 @@ schema: workflow/2022.04
 name: Survey Response
 settings:
   error_notification: true
+  lambda_timeout: 60
   warm_workers: 1
 triggers:
 - id: hi_5nHv7Xx
