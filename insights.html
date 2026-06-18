@@ -6,7 +6,7 @@
     <!-- end osano -->
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Insights Hub | McClatchy Media</title>
+    <title>Consumer Insights Panel | McClatchy Media</title>
 
     <link rel='preconnect' href='https://fonts.googleapis.com'>
     <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
@@ -1183,6 +1183,10 @@
     <script>
       (function () {
         'use strict';
+
+        /* brzlp.html injects this page after its own document loads, so the
+           static <title> never wins — set it programmatically here. */
+        document.title = 'Consumer Insights Panel | McClatchy Media';
 
         /* ── State ── */
         var confirmedEmail = '';
