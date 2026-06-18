@@ -1634,9 +1634,9 @@
            undefined/null/empty/off/control = not. Ineligible cards are hidden,
            then any survey section with no visible card is hidden entirely.
            (Catalog-empty sections don't render server-side at all — see the
-           {% if ..._count > 0 %} guards around each section — so this only
-           handles the flag-empty case.) Identity-bound — re-checked on email
-           confirm/change. */
+           Liquid count-greater-than-zero guards around each section — so this
+           only handles the flag-empty case.) Identity-bound — re-checked on
+           email confirm/change. */
         function isEligibleToken(v) {
           if (v == null) return false;
           var s = String(v).trim().toLowerCase();
