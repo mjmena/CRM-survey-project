@@ -1190,6 +1190,13 @@
         var bridgeReady = false;
         var completedSurveys = Object.create(null);
 
+        /* Consumer Insights Panel newsletter preference. Values come from the
+           mmc-preference-center catalog (braze_preference + braze_market, where
+           braze_market is the submktid routing key). Confirming an email opts
+           the user into this panel via brazeBridge.subscribeToNewsletter. */
+        var INSIGHTS_PANEL_PREF   = 'mcclatchymedia_insights_panel_experience';
+        var INSIGHTS_PANEL_SUBMKT = 'McClatchyMedia';
+
         window.__pp_external_id_resolver = function () { return hashedEmailId; };
 
         function sha256Hex(input) {
@@ -1237,6 +1244,18 @@
             window.addEventListener(e, fn, { once: true });
             document.addEventListener(e, fn, { once: true });
           });
+        }
+
+        // subscribeToNewsletter lives on the raw Braze bridge (per the mmc
+        // preference center), but setUserEmail is on lpBridge — so probe each.
+        function bridgeWithSubscribe() {
+          var candidates = [window.brazeBridge, window.lpBridge, window.appboyBridge];
+          for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i] && typeof candidates[i].subscribeToNewsletter === 'function') {
+              return candidates[i];
+            }
+          }
+          return null;
         }
 
         /* ── Button/link state helpers ── */
@@ -1295,6 +1314,14 @@
               if (window.lpBridge && window.lpBridge.setUserEmail) {
                 window.lpBridge.setUserEmail(email);
               }
+              // Explicit, user-initiated opt-in to the Consumer Insights Panel.
+              var subBridge = bridgeWithSubscribe();
+              if (subBridge) {
+                subBridge.subscribeToNewsletter({
+                  prefName: INSIGHTS_PANEL_PREF,
+                  submktid: INSIGHTS_PANEL_SUBMKT
+                });
+              }
               if (window.lpBridge && typeof window.lpBridge.requestImmediateDataFlush === 'function') {
                 window.lpBridge.requestImmediateDataFlush();
               }
@@ -1304,11 +1331,13 @@
           showConfirmedEmailUi(email);
         }
 
-        function autoConfirmUser(email) {
-          if (confirmedEmail) return;
-          confirmedEmail = email;
+        /* Pre-fill the input from a known email to make confirming easy, but
+           NEVER auto-submit: the user must click "Confirm Email" themselves so
+           the email send + any opt-in is an explicit, user-initiated action. */
+        function prefillEmail(email) {
+          if (confirmedEmail) return;               // already confirmed this session
+          if (pageEmailInput.value.trim()) return;  // don't clobber what they're typing
           pageEmailInput.value = email;
-          showConfirmedEmailUi(email);
         }
 
         function showConfirmedEmailUi(email) {
@@ -1357,7 +1386,7 @@
           if (!confirmedEmail && prefs.encoded_email) {
             try {
               var decoded = atob(prefs.encoded_email);
-              if (isEmailValid(decoded)) { autoConfirmUser(decoded); }
+              if (isEmailValid(decoded)) { prefillEmail(decoded); }
             } catch (e) {}
           }
         }
@@ -1370,7 +1399,7 @@
           if (b && b.getUser && typeof b.getUser().getEmail === 'function') {
             var email = b.getUser().getEmail();
             if (email && isEmailValid(email)) {
-              autoConfirmUser(email);
+              prefillEmail(email);
             }
           }
         }
