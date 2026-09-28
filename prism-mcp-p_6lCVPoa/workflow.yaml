@@ -18,7 +18,7 @@ steps:
     template_campaign_id: e9d9e88e-6152-4c72-99dc-4f2cee4f328c
 - namespace: build_sql
   runtime: nodejs20.x
-  uses: "./build_sql/entry.mjs"
+  uses: "./build_sql/entry.js"
   props:
     dispatch: "{{steps.parse_and_dispatch.$return_value}}"
 - namespace: snowflake_query
