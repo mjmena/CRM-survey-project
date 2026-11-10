@@ -76,6 +76,15 @@
   .write-in-input { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 13px; }
   .write-in-input:focus { outline: none; border-color: var(--a1); }
 
+  .matrix-wrap { overflow-x: auto; }
+  .matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .matrix thead th { padding: 4px 1px 8px; font-size: 10px; font-weight: 600; line-height: 1.2; color: var(--muted); text-align: center; vertical-align: bottom; }
+  .matrix tbody th { min-width: 72px; padding: 8px 6px; font-weight: 600; text-align: left; }
+  .matrix tbody tr:nth-child(odd) { background: rgba(15, 23, 42, 0.04); }
+  .matrix td { padding: 0; text-align: center; }
+  .matrix td label { display: block; padding: 10px 2px; cursor: pointer; }
+  .matrix input { width: 18px; height: 18px; margin: 0; accent-color: var(--a1); cursor: pointer; }
+
   .nav { display: flex; gap: 10px; margin-top: 14px; }
   .btn { border-radius: 12px; padding: 12px; font: 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
   .btn:hover { background: rgba(15, 23, 42, 0.06); }
@@ -116,6 +125,46 @@
 
 <script>
 (function () {
+  // Copy of sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs;
+  // test/normalize-definition.test.js fails if the two drift.
+  function normalizeDefinition(def) {
+    const sets = def.option_sets || {};
+    const opts = o => (typeof o === 'string' ? sets[o] || [] : o);
+    const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const questions = {};
+    const expanded = {};
+    for (const [k, q] of Object.entries(def.questions || {})) {
+      if (q.type !== 'matrix') {
+        questions[k] = q.options === undefined ? q : Object.assign({}, q, { options: opts(q.options) });
+        continue;
+      }
+      expanded[k] = (q.rows || []).map(row => {
+        const rk = k + '__' + slug(row);
+        questions[rk] = {
+          type: q.multi ? 'multi' : 'single',
+          question: q.question + ' — ' + row,
+          row: row,
+          matrix: { key: k, question: q.question, help_text: q.help_text },
+          required: q.required,
+          min_select: q.min_select,
+          show_results: q.show_results,
+          auto_advance: false,
+          options: opts(q.options),
+          show_if_answer: q.rows_from
+            ? { question: q.rows_from, op: 'array_contains', values: [row] }
+            : q.show_if_answer,
+        };
+        return rk;
+      });
+    }
+    const pages = (def.pages || []).map(p => Object.assign({}, p, {
+      groups: (p.groups || []).map(g => Object.assign({}, g, {
+        questions: g.questions.flatMap(qk => expanded[qk] || [qk]),
+      })),
+    }));
+    return Object.assign({}, def, { pages, questions });
+  }
+
   const VARIANT = '{{ variant }}';
   window.__VARIANT__ = VARIANT; // for debugging only
 
@@ -131,7 +180,7 @@
     try {
       let parsed = JSON.parse(raw);
       if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-      return parsed;
+      return normalizeDefinition(parsed);
     } catch (e) {
       console.error('[poll-iam] JSON.parse failed on survey definition.');
       console.error('  error:        ', e.message);
@@ -327,6 +376,46 @@
     `;
   }
 
+  // Consecutive rows of one matrix render as a single grid, as Qualtrics shows them.
+  function renderQuestions(keys) {
+    const out = [];
+    for (let i = 0; i < keys.length; i++) {
+      const m = SURVEY.questions[keys[i]].matrix;
+      if (!m) { out.push(renderQuestion(keys[i])); continue; }
+      const rows = [keys[i]];
+      while (i + 1 < keys.length && (SURVEY.questions[keys[i + 1]].matrix || {}).key === m.key) rows.push(keys[++i]);
+      out.push(renderMatrix(rows));
+    }
+    return out.join('');
+  }
+
+  function renderMatrix(keys) {
+    const first = SURVEY.questions[keys[0]];
+    const multi = first.type === 'multi';
+    const cols = first.options || [];
+    const head = cols.map(o => `<th scope="col">${o.label != null ? o.label : esc(o.value)}</th>`).join('');
+    const rows = keys.map(qk => {
+      const q = SURVEY.questions[qk];
+      const ans = state.answers[qk];
+      const cells = cols.map(o => {
+        const on = multi ? Array.isArray(ans) && ans.includes(o.value) : ans === o.value;
+        return `<td><label><input type="${multi ? 'checkbox' : 'radio'}" name="${esc(qk)}" value="${esc(o.value)}"
+                  data-q="${esc(qk)}" data-action="${multi ? 'multi' : 'single'}"
+                  aria-label="${esc(q.row + ': ' + (o.label != null ? o.label : o.value))}" ${on ? 'checked' : ''}></label></td>`;
+      }).join('');
+      return `<tr><th scope="row">${esc(q.row)}</th>${cells}</tr>`;
+    }).join('');
+    return `
+      <div class="card">
+        <p class="q">${esc(first.matrix.question)}</p>
+        ${first.matrix.help_text ? `<p class="help">${esc(first.matrix.help_text)}</p>` : ''}
+        <div class="matrix-wrap"><table class="matrix">
+          <thead><tr><td></td>${head}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>`;
+  }
+
   function templateHtml(id) {
     const el = document.getElementById(id);
     return el ? el.textContent : '';
@@ -360,7 +449,7 @@
       </div>
     ` : '';
 
-    const questions = visibleQuestions().map(renderQuestion).join('');
+    const questions = renderQuestions(visibleQuestions());
     const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
     const nav = `
       <div class="nav">
@@ -430,9 +519,11 @@
   }
 
   function toggleMulti(qk, value) {
-    const arr = [...(state.answers[qk] || [])];
+    const exclusive = v => (SURVEY.questions[qk].options || []).some(o => o.value === v && o.exclusive);
+    let arr = [...(state.answers[qk] || [])];
     const i = arr.indexOf(value);
-    if (i === -1) arr.push(value); else arr.splice(i, 1);
+    if (i !== -1) arr.splice(i, 1);
+    else arr = exclusive(value) ? [value] : arr.filter(v => !exclusive(v)).concat(value);
     state.answers[qk] = arr;
     clearHiddenAnswers();
     render();

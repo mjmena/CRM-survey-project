@@ -33,6 +33,7 @@ When you ship a new survey you author `definition`, `intro_html`, and `outro_htm
   "title": "...",                               // shown in the default intro header
   "intro_subtitle": "...",                      // optional subtitle
   "theme":    { /* Theme, optional — see §Theme below */ },
+  "option_sets": { /* optional, name → option list — see §Option sets */ },
   "pages":     [ /* Page, in display order */ ],
   "questions": { /* keyed map of Question */ }
 }
@@ -180,6 +181,34 @@ The submitted answer is an **array** of selected `value` strings. The workflow t
 - Always show the user their own text back on the done view (this is automatic).
 - `max_length` enforces both the textarea cap and the visible char counter.
 
+### `matrix` — a grid of rows that share one set of columns
+
+```jsonc
+{
+  "type": "matrix",
+  "question": "What is your overall opinion of each brand?",
+  "help_text": "...",
+  "multi": false,                   // optional. true = checkboxes (pick any per row); default radios
+  "rows": ["Pluto TV", "Roku", "Tubi"],
+  "rows_from": "brands_heard",      // optional. Show a row only if an earlier multi answer contains it
+  "required": true,                 // every visible row must be answered
+  "show_results": false,
+  "options": [ { "value": "Very Unfavorable" }, { "value": "No Opinion", "is_catch_all": true } ]
+}
+```
+
+- Renders as one grid, as Qualtrics shows it: options are the column headers, rows are the statements, and alternate rows are shaded.
+- Every renderer and the catalog sync run `normalizeDefinition` (`sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs`) on the definition first. It expands each row into an ordinary `single` (or `multi`) question keyed `<matrix key>__<row slug>`, with question text `"<question> — <row>"`. Answers, tallies, and `DIM_SURVEY_QUESTIONS` all use those row keys, so nothing downstream knows about matrices.
+- The row slug is the row text, lower-cased, with each run of non-alphanumerics replaced by `_`. Changing a row's text after launch changes its key.
+- `rows_from` replaces `show_if_answer` on the rows. Gate the whole matrix with the page's `show_if_answer`.
+- Matrix rows never auto-advance.
+
+---
+
+## Option sets
+
+A top-level `"option_sets": { "brands": [ ...options ] }` names an option list once. Any question (including a matrix) may then use `"options": "brands"`. Use it when the same list repeats — the catalog `definition` field is capped at 5,000 characters.
+
 ---
 
 ## Options
@@ -193,14 +222,16 @@ The submitted answer is an **array** of selected `value` strings. The workflow t
                                     // options for downstream classifier to skip.
   "write_in": true,                 // optional. Reveals an inline text field when this option
                                     // is selected. The typed text replaces value in the payload.
-  "write_in_placeholder": "..."     // optional. Placeholder for the write-in text field.
+  "write_in_placeholder": "...",    // optional. Placeholder for the write-in text field.
+  "exclusive": true                 // optional, multi only. A sole answer: ticking it clears
+                                    // the other choices, and ticking another clears it.
 }
 ```
 
 - `value` is the canonical key. Treat it as a stable identifier and don't change it post-launch — that breaks historical tallies and the taxonomy classifier's join.
 - `label` is rendered as **trusted HTML** — you can include inline styles or `<span>` tags for visual styling (e.g. `<span style="color:#CE1141">Sixers</span>`). Use sparingly; keep it accessible. `value` remains plain text and must not contain HTML.
 - `is_catch_all: true` does **not** change rendering. When the catalog sync writes this row to `DIM_SURVEY_CATALOG`, it sets `IS_CATCH_ALL = TRUE`, which the taxonomy classifier reads and passes to Claude as a `[catch-all]` marker, forcing an empty taxonomies result. Use it on "Other", "Prefer not to say", "None of these", "I won't be watching", etc.
-  - On `multi` questions: selecting a catch-all option bypasses `min_select` — the catch-all stands alone.
+  - On `multi` questions: selecting a catch-all option bypasses `min_select`. It does not clear other choices — add `exclusive: true` for that (e.g. "None Of These").
 - `write_in: true` turns the option into an "Other (please specify)" fallback. When selected, an inline text input appears; the typed text is submitted as the answer value instead of `value`. The write-in text is excluded from the tally cache (treated like a `text` question answer — lands in Snowflake and goes through the `text-response-classify` path). Pair with `is_catch_all: true` to prevent taxonomy classification on the sentinel value. At most one write-in option per question.
 
 ---
@@ -339,6 +370,7 @@ Use these as a funnel in Braze: `Q1` impressions → `Q2` completions → … �
 | Per-option `show_results` | Not planned | Granularity is per-question only. |
 | `back` skipping over hidden pages | Walks linearly; hidden pages are still touched | Low-impact since hidden pages have no questions to display. |
 | `version` enforcement | None | Bump it on schema changes; no runtime check yet. |
-| Multi-line text answers / file uploads / matrix questions | Out of scope | The three current types are the contract. |
+| Multi-line text answers / file uploads | Out of scope | |
+| Matrix carry-forward of columns | Not implemented | `rows_from` filters rows only; the columns are always the full option list. |
 
 When you implement one of these, update this doc in the same change.
