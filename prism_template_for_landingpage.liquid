@@ -441,9 +441,9 @@ if (!window.PrismPoll) {
           return `<tr><th scope="row">${esc(q.row)}</th>${cells}</tr>`;
         }).join('');
         return `
-          <div class="card">
-            <p class="q">${esc(first.matrix.question)}</p>
-            ${first.matrix.help_text ? `<p class="help">${esc(first.matrix.help_text)}</p>` : ''}
+          <div class="pp-card">
+            <p class="pp-q">${esc(first.matrix.question)}</p>
+            ${first.matrix.help_text ? `<p class="pp-help">${esc(first.matrix.help_text)}</p>` : ''}
             <div class="matrix-wrap"><table class="matrix">
               <thead><tr><td></td>${head}</tr></thead>
               <tbody>${rows}</tbody>
