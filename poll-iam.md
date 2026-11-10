@@ -293,6 +293,8 @@ Per-question boolean on `single` / `multi` (no effect on `text`). Default `true`
 
 The workflow always tallies regardless — `show_results` is a UI-only mute, so the data remains queryable in `STG_SURVEY_RESPONSES.RAW_DATA` and the `stats_<poll_id>` data store. Use it for sensitive or low-signal questions where the tally would be noise or feel intrusive.
 
+`show_results: false` hides only the percentage; the done view still lists the reader's answer. To leave those questions off the done view entirely, write the slot as `<div data-results-slot data-shown-only></div>` in `outro_html`. Text answers are then left off too.
+
 ---
 
 ## Render lifecycle

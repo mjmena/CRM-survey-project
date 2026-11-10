@@ -505,7 +505,9 @@ if (!window.PrismPoll) {
       function renderDoneView() {
         const grouped = [];
         const seen = new Map();
-        for (const r of state.results) {
+        // <div data-results-slot data-shown-only> lists only questions that show a percentage.
+        const shownOnly = /data-results-slot[^>]*data-shown-only/.test(templateHtml('data-pp-outro'));
+        for (const r of state.results.filter(r => !shownOnly || r.percentage != null)) {
           if (!seen.has(r.qk)) {
             const group = { questionText: r.questionText, qk: r.qk, answers: [] };
             seen.set(r.qk, group);
@@ -599,7 +601,7 @@ if (!window.PrismPoll) {
         }
       }
 
-      function nextPage() {
+      function nextPage() { clearTimeout(state.autoAdvanceTimer);
         if (!state.pagesLogged.has(state.pageIndex)) {
           state.pagesLogged.add(state.pageIndex);
           if (window.brazeBridge?.logClick) {

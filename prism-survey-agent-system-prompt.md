@@ -671,7 +671,8 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
     return `${header}${progress}${questions}${nav}`;
   }
   function renderDoneView() {
-    const items = state.results.map(r => `<div class="item"><b>${esc(r.questionText)}</b><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:600;">${esc(r.text)}</span>${r.percentage != null ? `<span style="font-weight:bold;color:var(--a1)">${r.percentage}%</span>` : ''}</div>${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width:0%"></div></div>` : ''}</div>`).join('');
+    const shownOnly = /data-results-slot[^>]*data-shown-only/.test(templateHtml('tmpl-outro'));
+    const items = state.results.filter(r => !shownOnly || r.percentage != null).map(r => `<div class="item"><b>${esc(r.questionText)}</b><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:600;">${esc(r.text)}</span>${r.percentage != null ? `<span style="font-weight:bold;color:var(--a1)">${r.percentage}%</span>` : ''}</div>${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width:0%"></div></div>` : ''}</div>`).join('');
     const html = templateHtml('tmpl-outro') || DEFAULT_OUTRO;
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html;
@@ -689,7 +690,7 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
   function setTextAnswer(qk, value) { state.answers[qk] = value; const counter = document.querySelector(`[data-char-count="${CSS.escape(qk)}"]`); if (counter) counter.textContent = value.length; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
   function setWriteInAnswer(qk, value) { state.writeIns[qk] = value; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
   function prevPage() { for (let i = state.pageIndex - 1; i >= 0; i--) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } }
-  function nextPage() { for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } submit(); }
+  function nextPage() { clearTimeout(state.autoAdvanceTimer); for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } submit(); }
   async function submit() {
     const payload = { poll_id: POLL_ID, device_id: DEVICE_ID, external_id: EXTERNAL_ID, market_name: MARKET_NAME, variant: VARIANT, submitted_at: new Date().toISOString(), answers: Object.entries(state.answers).filter(([qk]) => SURVEY.questions[qk]).map(([question, answer]) => { const q = SURVEY.questions[question]; const writeInOpt = (q.options || []).find(o => o.write_in); if (writeInOpt && q.type === 'single' && answer === writeInOpt.value) return { question, answer: state.writeIns[question] || answer, type: q.type, write_in: true }; if (writeInOpt && q.type === 'multi' && Array.isArray(answer) && answer.includes(writeInOpt.value)) { const rest = answer.filter(v => v !== writeInOpt.value); const text = state.writeIns[question]; return { question, answer: text ? [...rest, text] : rest, type: q.type, write_in: true }; } return { question, answer, type: q.type }; }) };
     let stats = {};
