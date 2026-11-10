@@ -109,6 +109,14 @@
   .prism-poll .pp-item b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .prism-poll .pp-summary-bar { height: 6px; background: rgba(15, 23, 42, 0.05); border-radius: 99px; margin-top: 8px; overflow: hidden; }
   .prism-poll .pp-summary-bar-fill { height: 100%; background: var(--a1); border-radius: 99px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; }
+  .prism-poll .matrix-wrap { overflow-x: auto; }
+  .prism-poll .matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .prism-poll .matrix thead th { padding: 4px 1px 8px; font-size: 10px; font-weight: 600; line-height: 1.2; color: var(--muted); text-align: center; vertical-align: bottom; }
+  .prism-poll .matrix tbody th { min-width: 72px; padding: 8px 6px; font-weight: 600; text-align: left; }
+  .prism-poll .matrix tbody tr:nth-child(odd) { background: rgba(15, 23, 42, 0.04); }
+  .prism-poll .matrix td { padding: 0; text-align: center; }
+  .prism-poll .matrix td label { display: block; padding: 10px 2px; cursor: pointer; }
+  .prism-poll .matrix input { width: 18px; height: 18px; margin: 0; accent-color: var(--a1); cursor: pointer; }
 </style>
 
 <script>
@@ -126,6 +134,47 @@ if (!window.PrismPoll) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       }[c]));
+    }
+
+    // Copy of sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs;
+    // test/normalize-definition.test.js fails if the two drift.
+    function normalizeDefinition(def) {
+      const sets = def.option_sets || {};
+      const opts = o => (typeof o === 'string' ? sets[o] || [] : o);
+      const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      const questions = {};
+      const expanded = {};
+      for (const [k, q] of Object.entries(def.questions || {})) {
+        if (q.type !== 'matrix') {
+          questions[k] = q.options === undefined ? q : Object.assign({}, q, { options: opts(q.options) });
+          continue;
+        }
+        expanded[k] = (q.rows || []).map(row => {
+          const rk = k + '__' + slug(row);
+          questions[rk] = {
+            type: q.multi ? 'multi' : 'single',
+            question: q.question + ' — ' + row,
+            row: row,
+            matrix: { key: k, question: q.question, help_text: q.help_text },
+            required: q.required,
+            min_select: q.min_select,
+            show_results: q.show_results,
+            options_from: q.options_from,
+            auto_advance: false,
+            options: opts(q.options),
+            show_if_answer: q.rows_from
+              ? { question: q.rows_from, op: 'array_contains', values: [row] }
+              : q.show_if_answer,
+          };
+          return rk;
+        });
+      }
+      const pages = (def.pages || []).map(p => Object.assign({}, p, {
+        groups: (p.groups || []).map(g => Object.assign({}, g, {
+          questions: g.questions.flatMap(qk => expanded[qk] || [qk]),
+        })),
+      }));
+      return Object.assign({}, def, { pages, questions });
     }
 
     function init(opts) {
@@ -155,7 +204,7 @@ if (!window.PrismPoll) {
         try {
           let parsed = JSON.parse(raw);
           if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-          return parsed;
+          return normalizeDefinition(parsed);
         } catch (e) {
           console.error('[poll-landing] JSON.parse failed on survey definition.', e.message);
           return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
@@ -264,6 +313,11 @@ if (!window.PrismPoll) {
               if (!visible) {
                 delete state.answers[qk];
                 delete state.writeIns[qk];
+              } else if (q && q.options_from && state.answers[qk] !== undefined) {
+                const offered = visibleOptions(q).map(o => o.value);
+                const ans = state.answers[qk];
+                if (Array.isArray(ans)) state.answers[qk] = ans.filter(v => offered.includes(v));
+                else if (!offered.includes(ans)) delete state.answers[qk];
               }
             });
           });
@@ -277,13 +331,21 @@ if (!window.PrismPoll) {
         return true;
       }
 
+      // options_from: offer only the options chosen in an earlier question (Qualtrics carry-forward).
+      // Catch-all and exclusive options, such as "None Of These", always stay.
+      function visibleOptions(q) {
+        if (!q.options_from) return q.options || [];
+        const picked = [].concat(state.answers[q.options_from] || []);
+        return (q.options || []).filter(o => o.is_catch_all || o.exclusive || picked.includes(o.value));
+      }
+
       function renderQuestion(qk) {
         const q = SURVEY.questions[qk];
         const ans = state.answers[qk];
         let body = '';
 
         if (q.type === 'single') {
-          body = q.options.map(opt => {
+          body = visibleOptions(q).map(opt => {
             const isSelected = ans === opt.value;
             const writeInHtml = opt.write_in && isSelected
               ? `<input type="text" class="pp-write-in-input" data-q="${esc(qk)}" data-action="write-in"
@@ -306,7 +368,7 @@ if (!window.PrismPoll) {
 
         } else if (q.type === 'multi') {
           const selected = new Set(ans || []);
-          body = q.options.map(opt => {
+          body = visibleOptions(q).map(opt => {
             const isSelected = selected.has(opt.value);
             const writeInHtml = opt.write_in && isSelected
               ? `<input type="text" class="pp-write-in-input" data-q="${esc(qk)}" data-action="write-in"
@@ -349,6 +411,46 @@ if (!window.PrismPoll) {
         `;
       }
 
+      // Consecutive rows of one matrix render as a single grid, as Qualtrics shows them.
+      function renderQuestions(keys) {
+        const out = [];
+        for (let i = 0; i < keys.length; i++) {
+          const m = SURVEY.questions[keys[i]].matrix;
+          if (!m) { out.push(renderQuestion(keys[i])); continue; }
+          const rows = [keys[i]];
+          while (i + 1 < keys.length && (SURVEY.questions[keys[i + 1]].matrix || {}).key === m.key) rows.push(keys[++i]);
+          out.push(renderMatrix(rows));
+        }
+        return out.join('');
+      }
+
+      function renderMatrix(keys) {
+        const first = SURVEY.questions[keys[0]];
+        const multi = first.type === 'multi';
+        const cols = visibleOptions(first);
+        const head = cols.map(o => `<th scope="col">${o.label != null ? o.label : esc(o.value)}</th>`).join('');
+        const rows = keys.map(qk => {
+          const q = SURVEY.questions[qk];
+          const ans = state.answers[qk];
+          const cells = cols.map(o => {
+            const on = multi ? Array.isArray(ans) && ans.includes(o.value) : ans === o.value;
+            return `<td><label><input type="${multi ? 'checkbox' : 'radio'}" name="${esc(qk)}" value="${esc(o.value)}"
+                      data-q="${esc(qk)}" data-action="${multi ? 'multi' : 'single'}"
+                      aria-label="${esc(q.row + ': ' + (o.label != null ? o.label : o.value))}" ${on ? 'checked' : ''}></label></td>`;
+          }).join('');
+          return `<tr><th scope="row">${esc(q.row)}</th>${cells}</tr>`;
+        }).join('');
+        return `
+          <div class="pp-card">
+            <p class="pp-q">${esc(first.matrix.question)}</p>
+            ${first.matrix.help_text ? `<p class="pp-help">${esc(first.matrix.help_text)}</p>` : ''}
+            <div class="matrix-wrap"><table class="matrix">
+              <thead><tr><td></td>${head}</tr></thead>
+              <tbody>${rows}</tbody>
+            </table></div>
+          </div>`;
+      }
+
       function templateHtml(attr) {
         const el = ROOT.querySelector('[' + attr + ']');
         return el ? el.textContent : '';
@@ -381,7 +483,7 @@ if (!window.PrismPoll) {
           </div>
         ` : '';
 
-        const questions = visibleQuestions().map(renderQuestion).join('');
+        const questions = renderQuestions(visibleQuestions());
         const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
         const nav = `
           <div class="pp-nav">
@@ -403,7 +505,9 @@ if (!window.PrismPoll) {
       function renderDoneView() {
         const grouped = [];
         const seen = new Map();
-        for (const r of state.results) {
+        // <div data-results-slot data-shown-only> lists only questions that show a percentage.
+        const shownOnly = /data-results-slot[^>]*data-shown-only/.test(templateHtml('data-pp-outro'));
+        for (const r of state.results.filter(r => !shownOnly || r.percentage != null)) {
           if (!seen.has(r.qk)) {
             const group = { questionText: r.questionText, qk: r.qk, answers: [] };
             seen.set(r.qk, group);
@@ -463,9 +567,11 @@ if (!window.PrismPoll) {
       }
 
       function toggleMulti(qk, value) {
-        const arr = [...(state.answers[qk] || [])];
+        const exclusive = v => (SURVEY.questions[qk].options || []).some(o => o.value === v && o.exclusive);
+        let arr = [...(state.answers[qk] || [])];
         const i = arr.indexOf(value);
-        if (i === -1) arr.push(value); else arr.splice(i, 1);
+        if (i !== -1) arr.splice(i, 1);
+        else arr = exclusive(value) ? [value] : arr.filter(v => !exclusive(v)).concat(value);
         state.answers[qk] = arr;
         clearHiddenAnswers();
         render();
@@ -495,7 +601,7 @@ if (!window.PrismPoll) {
         }
       }
 
-      function nextPage() {
+      function nextPage() { clearTimeout(state.autoAdvanceTimer);
         if (!state.pagesLogged.has(state.pageIndex)) {
           state.pagesLogged.add(state.pageIndex);
           if (window.brazeBridge?.logClick) {

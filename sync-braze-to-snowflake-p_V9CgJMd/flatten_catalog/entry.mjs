@@ -1,3 +1,5 @@
+import { normalizeDefinition } from "./normalize-definition.mjs";
+
 export default defineComponent({
   name: "Flatten Catalog",
   description:
@@ -23,6 +25,7 @@ export default defineComponent({
         try {
           def = typeof item.definition === "string" ? JSON.parse(item.definition) : item.definition;
           if (typeof def === "string") def = JSON.parse(def);
+          def = normalizeDefinition(def);
         } catch (err) {
           console.warn(`Skipping item ${pollId}: definition parse failed — ${err.message}`);
           continue;

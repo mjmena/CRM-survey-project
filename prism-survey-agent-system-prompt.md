@@ -320,6 +320,25 @@ mcp__crm-prism__create_taxonomy_rule({
 }
 ```
 
+### `matrix` question (a Qualtrics-style grid)
+```json
+{
+  "type": "matrix",
+  "question": "...",
+  "multi": false,
+  "rows": ["Row One", "Row Two"],
+  "rows_from": "earlier_multi_question_key",
+  "required": true,
+  "options": [ { "value": "Agree" }, { "value": "No Opinion", "is_catch_all": true } ]
+}
+```
+Each row becomes its own question keyed `<key>__<row slug>`. `rows_from` is optional. See `poll-iam.md` §matrix.
+
+### Option sets and sole answers
+- `"option_sets": { "brands": [...] }` at the top level, then `"options": "brands"` on any question. Use it when a list repeats: the catalog `definition` field is capped at 5,000 characters.
+- `"exclusive": true` on a `multi` option (for example "None Of These") makes it a sole answer.
+- `"options_from": "<earlier question key>"` offers only the options chosen in that question (carry-forward). On a matrix it filters the columns. Catch-all and exclusive options always stay.
+
 ### `show_if_answer` predicate (attachable to any page)
 ```json
 {
@@ -400,6 +419,14 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
   .char-count { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
   .write-in-input { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; font-size: 13px; }
   .write-in-input:focus { outline: none; border-color: var(--a1); }
+  .matrix-wrap { overflow-x: auto; }
+  .matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .matrix thead th { padding: 4px 1px 8px; font-size: 10px; font-weight: 600; line-height: 1.2; color: var(--muted); text-align: center; vertical-align: bottom; }
+  .matrix tbody th { min-width: 72px; padding: 8px 6px; font-weight: 600; text-align: left; }
+  .matrix tbody tr:nth-child(odd) { background: rgba(15, 23, 42, 0.04); }
+  .matrix td { padding: 0; text-align: center; }
+  .matrix td label { display: block; padding: 10px 2px; cursor: pointer; }
+  .matrix input { width: 18px; height: 18px; margin: 0; accent-color: var(--a1); cursor: pointer; }
   .nav { display: flex; gap: 10px; margin-top: 14px; }
   .btn { border-radius: 12px; padding: 12px; font: 14px inherit; color: var(--text); border: 1px solid var(--border); background: rgba(15, 23, 42, 0.03); cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; transition: 0.2s; text-decoration: none; }
   .btn:hover { background: rgba(15, 23, 42, 0.06); }
@@ -430,6 +457,47 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
 
 <script>
 (function () {
+  // Copy of sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs;
+  // test/normalize-definition.test.js fails if the two drift.
+  function normalizeDefinition(def) {
+    const sets = def.option_sets || {};
+    const opts = o => (typeof o === 'string' ? sets[o] || [] : o);
+    const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const questions = {};
+    const expanded = {};
+    for (const [k, q] of Object.entries(def.questions || {})) {
+      if (q.type !== 'matrix') {
+        questions[k] = q.options === undefined ? q : Object.assign({}, q, { options: opts(q.options) });
+        continue;
+      }
+      expanded[k] = (q.rows || []).map(row => {
+        const rk = k + '__' + slug(row);
+        questions[rk] = {
+          type: q.multi ? 'multi' : 'single',
+          question: q.question + ' — ' + row,
+          row: row,
+          matrix: { key: k, question: q.question, help_text: q.help_text },
+          required: q.required,
+          min_select: q.min_select,
+          show_results: q.show_results,
+          options_from: q.options_from,
+          auto_advance: false,
+          options: opts(q.options),
+          show_if_answer: q.rows_from
+            ? { question: q.rows_from, op: 'array_contains', values: [row] }
+            : q.show_if_answer,
+        };
+        return rk;
+      });
+    }
+    const pages = (def.pages || []).map(p => Object.assign({}, p, {
+      groups: (p.groups || []).map(g => Object.assign({}, g, {
+        questions: g.questions.flatMap(qk => expanded[qk] || [qk]),
+      })),
+    }));
+    return Object.assign({}, def, { pages, questions });
+  }
+
   const VARIANT = 'preview';
   window.__VARIANT__ = VARIANT;
 
@@ -440,7 +508,7 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
     try {
       let parsed = JSON.parse(raw);
       if (typeof parsed === 'string') parsed = JSON.parse(parsed);
-      return parsed;
+      return normalizeDefinition(parsed);
     } catch (e) {
       console.error('[preview] JSON.parse failed:', e.message);
       return { poll_id: '', pages: [], questions: {}, title: 'Survey unavailable' };
@@ -519,19 +587,27 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  // options_from: offer only the options chosen in an earlier question (Qualtrics carry-forward).
+  // Catch-all and exclusive options, such as "None Of These", always stay.
+  function visibleOptions(q) {
+    if (!q.options_from) return q.options || [];
+    const picked = [].concat(state.answers[q.options_from] || []);
+    return (q.options || []).filter(o => o.is_catch_all || o.exclusive || picked.includes(o.value));
+  }
+
   function renderQuestion(qk) {
     const q = SURVEY.questions[qk];
     const ans = state.answers[qk];
     let body = '';
     if (q.type === 'single') {
-      body = q.options.map(opt => {
+      body = visibleOptions(q).map(opt => {
         const isSelected = ans === opt.value;
         const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
         return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="radio" name="${esc(qk)}" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="single" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
       }).join('');
     } else if (q.type === 'multi') {
       const selected = new Set(ans || []);
-      body = q.options.map(opt => {
+      body = visibleOptions(q).map(opt => {
         const isSelected = selected.has(opt.value);
         const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
         return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="checkbox" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="multi" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
@@ -543,6 +619,45 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
     }
     return `<div class="card"><p class="q">${esc(q.question)}</p>${q.help_text ? `<p class="help">${esc(q.help_text)}</p>` : ''}${body}</div>`;
   }
+  // Consecutive rows of one matrix render as a single grid, as Qualtrics shows them.
+  function renderQuestions(keys) {
+    const out = [];
+    for (let i = 0; i < keys.length; i++) {
+      const m = SURVEY.questions[keys[i]].matrix;
+      if (!m) { out.push(renderQuestion(keys[i])); continue; }
+      const rows = [keys[i]];
+      while (i + 1 < keys.length && (SURVEY.questions[keys[i + 1]].matrix || {}).key === m.key) rows.push(keys[++i]);
+      out.push(renderMatrix(rows));
+    }
+    return out.join('');
+  }
+
+  function renderMatrix(keys) {
+    const first = SURVEY.questions[keys[0]];
+    const multi = first.type === 'multi';
+    const cols = visibleOptions(first);
+    const head = cols.map(o => `<th scope="col">${o.label != null ? o.label : esc(o.value)}</th>`).join('');
+    const rows = keys.map(qk => {
+      const q = SURVEY.questions[qk];
+      const ans = state.answers[qk];
+      const cells = cols.map(o => {
+        const on = multi ? Array.isArray(ans) && ans.includes(o.value) : ans === o.value;
+        return `<td><label><input type="${multi ? 'checkbox' : 'radio'}" name="${esc(qk)}" value="${esc(o.value)}"
+                  data-q="${esc(qk)}" data-action="${multi ? 'multi' : 'single'}"
+                  aria-label="${esc(q.row + ': ' + (o.label != null ? o.label : o.value))}" ${on ? 'checked' : ''}></label></td>`;
+      }).join('');
+      return `<tr><th scope="row">${esc(q.row)}</th>${cells}</tr>`;
+    }).join('');
+    return `
+      <div class="card">
+        <p class="q">${esc(first.matrix.question)}</p>
+        ${first.matrix.help_text ? `<p class="help">${esc(first.matrix.help_text)}</p>` : ''}
+        <div class="matrix-wrap"><table class="matrix">
+          <thead><tr><td></td>${head}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>`;
+  }
   function templateHtml(id) { const el = document.getElementById(id); return el ? el.textContent : ''; }
   const DEFAULT_INTRO = `<h3 class="title">${esc(SURVEY.title || '')}</h3><p class="sub">Your responses help us understand what readers are thinking.</p>`;
   const DEFAULT_OUTRO = `<h3 class="title">Thanks!</h3><p class="sub">Here's how your answers compare to other readers.</p><div data-results-slot></div><div class="nav" style="margin-top:14px;"><button class="btn" data-action="dismiss">Close</button></div>`;
@@ -550,13 +665,14 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
     const page = SURVEY.pages[state.pageIndex] || {};
     const header = state.pageIndex === 0 ? (templateHtml('tmpl-intro') || DEFAULT_INTRO) : (page.title ? `<h3 class="title">${esc(page.title)}</h3>` : '');
     const progress = SURVEY.pages.length > 1 ? `<div class="progress">${SURVEY.pages.map((_, i) => `<div class="bar"><i style="width:${i < state.pageIndex ? 100 : i === state.pageIndex ? 50 : 0}%"></i></div>`).join('')}</div>` : '';
-    const questions = visibleQuestions().map(renderQuestion).join('');
+    const questions = renderQuestions(visibleQuestions());
     const nextLabel = isLastVisiblePage() ? 'Submit' : 'Next';
     const nav = `<div class="nav">${state.pageIndex > 0 ? '<button class="btn" data-action="prev">Back</button>' : ''}<button class="btn primary" data-action="next" ${canAdvance() ? '' : 'disabled'}>${nextLabel}</button></div>`;
     return `${header}${progress}${questions}${nav}`;
   }
   function renderDoneView() {
-    const items = state.results.map(r => `<div class="item"><b>${esc(r.questionText)}</b><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:600;">${esc(r.text)}</span>${r.percentage != null ? `<span style="font-weight:bold;color:var(--a1)">${r.percentage}%</span>` : ''}</div>${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width:0%"></div></div>` : ''}</div>`).join('');
+    const shownOnly = /data-results-slot[^>]*data-shown-only/.test(templateHtml('tmpl-outro'));
+    const items = state.results.filter(r => !shownOnly || r.percentage != null).map(r => `<div class="item"><b>${esc(r.questionText)}</b><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:12.5px;font-weight:600;">${esc(r.text)}</span>${r.percentage != null ? `<span style="font-weight:bold;color:var(--a1)">${r.percentage}%</span>` : ''}</div>${r.percentage != null ? `<div class="summary-bar"><div class="summary-bar-fill" data-bar="${esc(r.qk + '|' + r.value)}" style="width:0%"></div></div>` : ''}</div>`).join('');
     const html = templateHtml('tmpl-outro') || DEFAULT_OUTRO;
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html;
@@ -570,11 +686,11 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
     const q = SURVEY.questions[qk];
     if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) { clearTimeout(state.autoAdvanceTimer); state.autoAdvanceTimer = setTimeout(nextPage, 350); }
   }
-  function toggleMulti(qk, value) { const arr = [...(state.answers[qk] || [])]; const i = arr.indexOf(value); if (i === -1) arr.push(value); else arr.splice(i, 1); state.answers[qk] = arr; render(); }
+  function toggleMulti(qk, value) { const exclusive = v => (SURVEY.questions[qk].options || []).some(o => o.value === v && o.exclusive); let arr = [...(state.answers[qk] || [])]; const i = arr.indexOf(value); if (i !== -1) arr.splice(i, 1); else arr = exclusive(value) ? [value] : arr.filter(v => !exclusive(v)).concat(value); state.answers[qk] = arr; render(); }
   function setTextAnswer(qk, value) { state.answers[qk] = value; const counter = document.querySelector(`[data-char-count="${CSS.escape(qk)}"]`); if (counter) counter.textContent = value.length; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
   function setWriteInAnswer(qk, value) { state.writeIns[qk] = value; const nextBtn = document.querySelector('[data-action="next"]'); if (nextBtn) nextBtn.disabled = !canAdvance(); }
   function prevPage() { for (let i = state.pageIndex - 1; i >= 0; i--) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } }
-  function nextPage() { for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } submit(); }
+  function nextPage() { clearTimeout(state.autoAdvanceTimer); for (let i = state.pageIndex + 1; i < SURVEY.pages.length; i++) { if (isPageVisible(SURVEY.pages[i])) { state.pageIndex = i; render(); return; } } submit(); }
   async function submit() {
     const payload = { poll_id: POLL_ID, device_id: DEVICE_ID, external_id: EXTERNAL_ID, market_name: MARKET_NAME, variant: VARIANT, submitted_at: new Date().toISOString(), answers: Object.entries(state.answers).filter(([qk]) => SURVEY.questions[qk]).map(([question, answer]) => { const q = SURVEY.questions[question]; const writeInOpt = (q.options || []).find(o => o.write_in); if (writeInOpt && q.type === 'single' && answer === writeInOpt.value) return { question, answer: state.writeIns[question] || answer, type: q.type, write_in: true }; if (writeInOpt && q.type === 'multi' && Array.isArray(answer) && answer.includes(writeInOpt.value)) { const rest = answer.filter(v => v !== writeInOpt.value); const text = state.writeIns[question]; return { question, answer: text ? [...rest, text] : rest, type: q.type, write_in: true }; } return { question, answer, type: q.type }; }) };
     let stats = {};
