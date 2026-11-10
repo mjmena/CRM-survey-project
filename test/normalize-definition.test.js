@@ -13,7 +13,7 @@ const def = {
     heard: { type: "multi", question: "Heard of?", required: true, options: "brands" },
     fav: {
       type: "matrix", question: "Opinion?", required: true, show_results: false,
-      rows: ["Pluto TV", "Samsung TV Plus"], rows_from: "heard",
+      rows: ["Pluto TV", "Samsung TV Plus"], rows_from: "heard", options_from: "heard",
       options: [{ value: "Good" }, { value: "Bad" }],
     },
     note: { type: "text", question: "Anything else?" },
@@ -37,6 +37,7 @@ describe("normalizeDefinition", () => {
       matrix: { key: "fav", question: "Opinion?" },
       required: true,
       show_results: false,
+      options_from: "heard",
       auto_advance: false,
       options: [{ value: "Good" }, { value: "Bad" }],
       show_if_answer: { question: "heard", op: "array_contains", values: ["Samsung TV Plus"] },

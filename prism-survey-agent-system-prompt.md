@@ -337,6 +337,7 @@ Each row becomes its own question keyed `<key>__<row slug>`. `rows_from` is opti
 ### Option sets and sole answers
 - `"option_sets": { "brands": [...] }` at the top level, then `"options": "brands"` on any question. Use it when a list repeats: the catalog `definition` field is capped at 5,000 characters.
 - `"exclusive": true` on a `multi` option (for example "None Of These") makes it a sole answer.
+- `"options_from": "<earlier question key>"` offers only the options chosen in that question (carry-forward). On a matrix it filters the columns. Catch-all and exclusive options always stay.
 
 ### `show_if_answer` predicate (attachable to any page)
 ```json
@@ -479,6 +480,7 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
           required: q.required,
           min_select: q.min_select,
           show_results: q.show_results,
+          options_from: q.options_from,
           auto_advance: false,
           options: opts(q.options),
           show_if_answer: q.rows_from
@@ -585,19 +587,27 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  // options_from: offer only the options chosen in an earlier question (Qualtrics carry-forward).
+  // Catch-all and exclusive options, such as "None Of These", always stay.
+  function visibleOptions(q) {
+    if (!q.options_from) return q.options || [];
+    const picked = [].concat(state.answers[q.options_from] || []);
+    return (q.options || []).filter(o => o.is_catch_all || o.exclusive || picked.includes(o.value));
+  }
+
   function renderQuestion(qk) {
     const q = SURVEY.questions[qk];
     const ans = state.answers[qk];
     let body = '';
     if (q.type === 'single') {
-      body = q.options.map(opt => {
+      body = visibleOptions(q).map(opt => {
         const isSelected = ans === opt.value;
         const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
         return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="radio" name="${esc(qk)}" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="single" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
       }).join('');
     } else if (q.type === 'multi') {
       const selected = new Set(ans || []);
-      body = q.options.map(opt => {
+      body = visibleOptions(q).map(opt => {
         const isSelected = selected.has(opt.value);
         const writeInHtml = opt.write_in && isSelected ? `<input type="text" class="write-in-input" data-q="${esc(qk)}" data-action="write-in" placeholder="${esc(opt.write_in_placeholder || '')}" value="${esc(state.writeIns[qk] || '')}">` : '';
         return `<label class="opt${OPT_ANIM_CLASS ? ' ' + OPT_ANIM_CLASS : ''}${isSelected ? ' selected' : ''}">${OPT_ANIM_CLASS ? '<div class="opt-indicator"></div>' : ''}<input type="checkbox" value="${esc(opt.value)}" data-q="${esc(qk)}" data-action="multi" ${isSelected ? 'checked' : ''}><div><strong>${opt.label != null ? opt.label : esc(opt.value)}</strong>${opt.description ? `<span>${esc(opt.description)}</span>` : ''}${writeInHtml}</div></label>`;
@@ -625,7 +635,7 @@ This is the live renderer with Liquid stripped and three placeholders. Substitut
   function renderMatrix(keys) {
     const first = SURVEY.questions[keys[0]];
     const multi = first.type === 'multi';
-    const cols = first.options || [];
+    const cols = visibleOptions(first);
     const head = cols.map(o => `<th scope="col">${o.label != null ? o.label : esc(o.value)}</th>`).join('');
     const rows = keys.map(qk => {
       const q = SURVEY.questions[qk];

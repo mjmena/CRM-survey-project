@@ -201,7 +201,19 @@ The submitted answer is an **array** of selected `value` strings. The workflow t
 - Every renderer and the catalog sync run `normalizeDefinition` (`sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs`) on the definition first. It expands each row into an ordinary `single` (or `multi`) question keyed `<matrix key>__<row slug>`, with question text `"<question> — <row>"`. Answers, tallies, and `DIM_SURVEY_QUESTIONS` all use those row keys, so nothing downstream knows about matrices.
 - The row slug is the row text, lower-cased, with each run of non-alphanumerics replaced by `_`. Changing a row's text after launch changes its key.
 - `rows_from` replaces `show_if_answer` on the rows. Gate the whole matrix with the page's `show_if_answer`.
+- `options_from` on a matrix filters its columns — see §Carry-forward.
 - Matrix rows never auto-advance.
+
+---
+
+## Carry-forward (`options_from`)
+
+`"options_from": "<earlier question key>"` on a `single`, `multi`, or `matrix` question offers only the options the reader chose in that earlier question — the Qualtrics "Carry Forward Selected Choices". On a matrix it filters the columns; `rows_from` filters the rows.
+
+- Options with `is_catch_all` or `exclusive` always stay, so "None Of These" is always offered.
+- Match is on `value`, so the two questions must use the same option values (an `option_sets` entry makes that automatic).
+- If the reader goes back and changes the earlier answer, the widget drops later answers that are no longer offered.
+- `DIM_SURVEY_OPTIONS` still lists every option; only the display is filtered.
 
 ---
 
@@ -371,6 +383,5 @@ Use these as a funnel in Braze: `Q1` impressions → `Q2` completions → … �
 | `back` skipping over hidden pages | Walks linearly; hidden pages are still touched | Low-impact since hidden pages have no questions to display. |
 | `version` enforcement | None | Bump it on schema changes; no runtime check yet. |
 | Multi-line text answers / file uploads | Out of scope | |
-| Matrix carry-forward of columns | Not implemented | `rows_from` filters rows only; the columns are always the full option list. |
 
 When you implement one of these, update this doc in the same change.

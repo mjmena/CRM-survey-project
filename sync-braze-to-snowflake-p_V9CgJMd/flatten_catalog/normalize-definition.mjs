@@ -24,6 +24,7 @@ export function normalizeDefinition(def) {
         required: q.required,
         min_select: q.min_select,
         show_results: q.show_results,
+        options_from: q.options_from,
         auto_advance: false,
         options: opts(q.options),
         show_if_answer: q.rows_from
