@@ -325,7 +325,7 @@ For reference — the renderer builds this on submit. Authors don't write it, bu
   "device_id": "<braze targeted_device id>",
   "external_id": "<braze user_id>",       // empty for anonymous users
   "market_name": "<paper code>",          // from event_properties.market_name
-  "variant": "<flag value>",              // the Amplitude flag value used to look up the row
+  "variant": "<flag variant>",           // event_properties.${ampl_variant}; falls back to the catalog row id
   "submitted_at": "ISO8601",
   "answers": [
     { "question": "world_cup_pick",       "answer": "Brazil",                 "type": "single" },
