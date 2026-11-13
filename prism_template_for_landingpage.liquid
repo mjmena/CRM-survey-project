@@ -109,14 +109,18 @@
   .prism-poll .pp-item b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .prism-poll .pp-summary-bar { height: 6px; background: rgba(15, 23, 42, 0.05); border-radius: 99px; margin-top: 8px; overflow: hidden; }
   .prism-poll .pp-summary-bar-fill { height: 100%; background: var(--a1); border-radius: 99px; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0; }
-  .prism-poll .matrix-wrap { overflow-x: auto; }
-  .prism-poll .matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .prism-poll .matrix thead th { padding: 4px 1px 8px; font-size: 10px; font-weight: 600; line-height: 1.2; color: var(--muted); text-align: center; vertical-align: bottom; }
-  .prism-poll .matrix tbody th { min-width: 72px; padding: 8px 6px; font-weight: 600; text-align: left; }
-  .prism-poll .matrix tbody tr:nth-child(odd) { background: rgba(15, 23, 42, 0.04); }
-  .prism-poll .matrix td { padding: 0; text-align: center; }
-  .prism-poll .matrix td label { display: block; padding: 10px 2px; cursor: pointer; }
-  .prism-poll .matrix input { width: 18px; height: 18px; margin: 0; accent-color: var(--a1); cursor: pointer; }
+  .prism-poll .pp-deck-dots { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; margin: 2px 0 6px; }
+  .prism-poll .pp-deck-dots button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg1); font: 600 10px inherit; color: var(--muted); cursor: pointer; padding: 0; }
+  .prism-poll .pp-deck-dots button.done { border-color: var(--a1); color: var(--a1); }
+  .prism-poll .pp-deck-dots button.here { border-width: 2px; border-color: var(--a1); color: var(--text); }
+  .prism-poll .pp-deck { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; position: relative; margin: 0; padding: 4px 0 6px; scrollbar-width: none; }
+  .prism-poll .pp-deck::-webkit-scrollbar { display: none; }
+  .prism-poll .pp-slide { flex: 0 0 86%; scroll-snap-align: center; border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--bg1); }
+  .prism-poll .pp-slide.done { border-color: var(--a1); }
+  .prism-poll .pp-slide-count { font-size: 11.5px; color: var(--muted); }
+  .prism-poll .pp-slide-row { margin: 4px 0; min-height: 2.6em; font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .prism-poll .pp-slide .pp-opt { padding: 9px 12px; margin-top: 6px; }
+  .prism-poll .pp-deck-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); text-align: center; }
 </style>
 
 <script>
@@ -242,6 +246,7 @@ if (!window.PrismPoll) {
         results: [],
         autoAdvanceTimer: null,
         pagesLogged: new Set(),
+        deckAt: {},
       };
 
       function evalUserPredicate(p) { return true; }
@@ -411,7 +416,7 @@ if (!window.PrismPoll) {
         `;
       }
 
-      // Consecutive rows of one matrix render as a single grid, as Qualtrics shows them.
+      // Consecutive rows of one matrix render as one swipe deck: a card per row.
       function renderQuestions(keys) {
         const out = [];
         for (let i = 0; i < keys.length; i++) {
@@ -427,28 +432,73 @@ if (!window.PrismPoll) {
       function renderMatrix(keys) {
         const first = SURVEY.questions[keys[0]];
         const multi = first.type === 'multi';
-        const cols = visibleOptions(first);
-        const head = cols.map(o => `<th scope="col">${o.label != null ? o.label : esc(o.value)}</th>`).join('');
-        const rows = keys.map(qk => {
+        const mk = first.matrix.key;
+        const at = Math.min(state.deckAt[mk] || 0, keys.length - 1);
+        const done = qk => { const a = state.answers[qk]; return multi ? Array.isArray(a) && a.length > 0 : a != null && a !== ''; };
+        const dots = keys.map((qk, i) => `<button type="button" class="${done(qk) ? 'done' : ''}${i === at ? ' here' : ''}"
+                  data-action="deck" data-matrix="${esc(mk)}" data-to="${i}" aria-label="${esc('Row ' + (i + 1) + ': ' + SURVEY.questions[qk].row)}">${i + 1}</button>`).join('');
+        const slides = keys.map((qk, i) => {
           const q = SURVEY.questions[qk];
           const ans = state.answers[qk];
-          const cells = cols.map(o => {
+          const opts = visibleOptions(q).map(o => {
             const on = multi ? Array.isArray(ans) && ans.includes(o.value) : ans === o.value;
-            return `<td><label><input type="${multi ? 'checkbox' : 'radio'}" name="${esc(qk)}" value="${esc(o.value)}"
-                      data-q="${esc(qk)}" data-action="${multi ? 'multi' : 'single'}"
-                      aria-label="${esc(q.row + ': ' + (o.label != null ? o.label : o.value))}" ${on ? 'checked' : ''}></label></td>`;
+            return `<label class="pp-opt${on ? ' pp-selected' : ''}">
+                      <input type="${multi ? 'checkbox' : 'radio'}" name="${esc(qk)}" value="${esc(o.value)}"
+                             data-q="${esc(qk)}" data-action="${multi ? 'multi' : 'single'}" ${on ? 'checked' : ''}>
+                      <div><strong>${o.label != null ? o.label : esc(o.value)}</strong></div>
+                    </label>`;
           }).join('');
-          return `<tr><th scope="row">${esc(q.row)}</th>${cells}</tr>`;
+          const next = multi && i < keys.length - 1
+            ? `<div class="pp-nav"><button type="button" class="pp-btn" data-action="deck" data-matrix="${esc(mk)}" data-to="${i + 1}">Next statement</button></div>`
+            : '';
+          return `<section class="pp-slide${done(qk) ? ' done' : ''}" role="group" aria-label="${esc((i + 1) + ' of ' + keys.length + ': ' + q.row)}">
+                    <div class="pp-slide-count">${i + 1} of ${keys.length}</div>
+                    <p class="pp-slide-row">${esc(q.row)}</p>
+                    ${opts}${next}
+                  </section>`;
         }).join('');
         return `
           <div class="pp-card">
             <p class="pp-q">${esc(first.matrix.question)}</p>
             ${first.matrix.help_text ? `<p class="pp-help">${esc(first.matrix.help_text)}</p>` : ''}
-            <div class="matrix-wrap"><table class="matrix">
-              <thead><tr><td></td>${head}</tr></thead>
-              <tbody>${rows}</tbody>
-            </table></div>
+            <div class="pp-deck-dots">${dots}</div>
+            <div class="pp-deck" data-deck="${esc(mk)}">${slides}</div>
+            <p class="pp-deck-hint">Swipe for the next ${multi ? 'statement' : 'row'}</p>
           </div>`;
+      }
+
+      // A re-render rebuilds the deck, so put it back on the row the reader was on.
+      function placeDecks() {
+        ROOT.querySelectorAll('[data-deck]').forEach(deck => {
+          const mk = deck.dataset.deck;
+          const slides = deck.children;
+          deck.scrollLeft = slideLeft(deck, Math.min(state.deckAt[mk] || 0, slides.length - 1));
+          let settle;
+          deck.addEventListener('scroll', () => {
+            clearTimeout(settle);
+            settle = setTimeout(() => {
+              let best = 0;
+              for (let i = 1; i < slides.length; i++) {
+                if (Math.abs(slideLeft(deck, i) - deck.scrollLeft) < Math.abs(slideLeft(deck, best) - deck.scrollLeft)) best = i;
+              }
+              state.deckAt[mk] = best;
+              deck.parentNode.querySelectorAll('.pp-deck-dots button').forEach((b, i) => b.classList.toggle('here', i === best));
+            }, 120);
+          });
+        });
+      }
+
+      function slideLeft(deck, i) {
+        const s = deck.children[i];
+        return Math.max(0, Math.min(deck.scrollWidth - deck.clientWidth, s.offsetLeft - (deck.clientWidth - s.clientWidth) / 2));
+      }
+
+      function slideTo(mk, i) {
+        const deck = ROOT.querySelector(`[data-deck="${CSS.escape(mk)}"]`);
+        if (!deck || !deck.children[i]) return;
+        state.deckAt[mk] = i;
+        const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        deck.scrollTo({ left: slideLeft(deck, i), behavior: reduce ? 'auto' : 'smooth' });
       }
 
       function templateHtml(attr) {
@@ -553,6 +603,7 @@ if (!window.PrismPoll) {
       function render() {
         const content = ROOT.querySelector('[data-pp-content]');
         content.innerHTML = state.step === 'page' ? renderPageView() : renderDoneView();
+        placeDecks();
       }
 
       function setSingleAnswer(qk, value) {
@@ -560,6 +611,11 @@ if (!window.PrismPoll) {
         clearHiddenAnswers();
         render();
         const q = SURVEY.questions[qk];
+        if (q.matrix) {
+          const rows = visibleQuestions().filter(k => (SURVEY.questions[k].matrix || {}).key === q.matrix.key);
+          const i = rows.indexOf(qk);
+          if (i < rows.length - 1) setTimeout(() => slideTo(q.matrix.key, i + 1), 250);
+        }
         if (q.auto_advance !== false && visibleQuestions().length === 1 && canAdvance()) {
           clearTimeout(state.autoAdvanceTimer);
           state.autoAdvanceTimer = setTimeout(nextPage, 350);
@@ -723,6 +779,7 @@ if (!window.PrismPoll) {
         const action = target.dataset.action;
         if (action === 'prev') prevPage();
         else if (action === 'next') nextPage();
+        else if (action === 'deck') slideTo(target.dataset.matrix, +target.dataset.to);
       });
 
       ROOT.addEventListener('change', e => {
