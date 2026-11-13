@@ -197,7 +197,7 @@ The submitted answer is an **array** of selected `value` strings. The workflow t
 }
 ```
 
-- Renders as one grid, as Qualtrics shows it: options are the column headers, rows are the statements, and alternate rows are shaded.
+- Renders as a swipe deck: one card per row, holding the full option list, with the next card peeking in from the right. Numbered dots above the deck jump between rows and mark the answered ones. A single-choice pick slides to the next row; a multi row has a "Next statement" button. The deck keeps its row across re-renders (`state.deckAt`). It replaced the Qualtrics-style grid, which could not fit six long column labels on a phone.
 - Every renderer and the catalog sync run `normalizeDefinition` (`sync-braze-to-snowflake-p_V9CgJMd/flatten_catalog/normalize-definition.mjs`) on the definition first. It expands each row into an ordinary `single` (or `multi`) question keyed `<matrix key>__<row slug>`, with question text `"<question> — <row>"`. Answers, tallies, and `DIM_SURVEY_QUESTIONS` all use those row keys, so nothing downstream knows about matrices.
 - The row slug is the row text, lower-cased, with each run of non-alphanumerics replaced by `_`. Changing a row's text after launch changes its key.
 - `rows_from` replaces `show_if_answer` on the rows. Gate the whole matrix with the page's `show_if_answer`.
