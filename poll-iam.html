@@ -170,7 +170,7 @@
     return Object.assign({}, def, { pages, questions });
   }
 
-  const VARIANT = '{{ variant }}';
+  const VARIANT = '{{ event_properties.${ampl_variant} | default: variant }}';
   window.__VARIANT__ = VARIANT; // for debugging only
 
   const SURVEY = (function () {
