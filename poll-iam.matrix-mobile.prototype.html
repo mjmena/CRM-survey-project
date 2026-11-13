@@ -3,7 +3,7 @@
 <!--
   PROTOTYPE — throwaway. Not production, not loaded by Braze.
   Question: how should PRISM matrix questions render on a phone?
-  Five variants of the matrix block in poll-iam.html, switchable by #A..#E (or ?variant=),
+  Variants of the matrix block in poll-iam.html, switchable by #A, #C, #C2, #C3 (or ?variant=),
   rendered with the four real matrices from the Pluto TV poll
   (crm_prism_surveys: prism_pluto_tv_2026_survey_control).
   Light-only on purpose: it copies the IAM's own tokens, and the IAM has no dark theme.
@@ -68,19 +68,6 @@
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   :focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
 
-  /* B: row cards with wrapping pills */
-  .rowcard { padding: 12px 0; border-top: 1px solid var(--border); }
-  .rowcard:first-of-type { border-top: 0; padding-top: 4px; }
-  .rowlabel { font-size: 13.5px; font-weight: 650; line-height: 1.35; margin: 0 0 8px; display: flex; gap: 6px; align-items: baseline; }
-  .tick { color: var(--ok); font-size: 12px; }
-  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
-  .pill { position: relative; }
-  .pill input { position: absolute; opacity: 0; inset: 0; margin: 0; }
-  .pill span { display: block; padding: 8px 11px; border-radius: 99px; border: 1px solid var(--border); font-size: 12.5px; line-height: 1.2; background: var(--bg1); cursor: pointer; }
-  .pill input:checked + span { background: var(--a1); border-color: var(--a1); color: #fff; }
-  .pill input:focus-visible + span { outline: 2px solid var(--a1); outline-offset: 2px; }
-  .pill.catch span { border-style: dashed; color: var(--muted); }
-
   /* C: one row at a time */
   .stepper-top { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
   .rowdots { display: flex; gap: 5px; }
@@ -91,30 +78,24 @@
   .rownav { display: flex; gap: 8px; margin-top: 10px; }
   .rownav .btn { padding: 9px; font-size: 13px; }
 
-  /* D: accordion */
-  .acc { border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; overflow: hidden; background: var(--bg1); }
-  .acc > button { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: 10px; justify-content: space-between; align-items: center; padding: 12px 14px; cursor: pointer; }
-  .acc > button:focus-visible { outline: 2px solid var(--a1); outline-offset: -2px; }
-  .acc .lbl { font-size: 13.5px; font-weight: 650; line-height: 1.3; }
-  .acc .val { font-size: 12px; color: var(--muted); text-align: right; flex-shrink: 0; max-width: 45%; }
-  .acc.answered .val { color: var(--a1); font-weight: 600; }
-  .acc.open { border-color: var(--a1); }
-  .acc .body { padding: 0 14px 12px; }
-  .acc .opt { margin-top: 6px; padding: 10px 12px; }
+  /* C2: swipe deck */
+  .deck { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; position: relative; margin: 0 -14px; padding: 4px 14px 6px; scrollbar-width: none; }
+  .deck::-webkit-scrollbar { display: none; }
+  .slide { flex: 0 0 86%; scroll-snap-align: center; border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--bg1); }
+  .slide.done { border-color: var(--a1-line); }
+  .slide .bigrow { font-size: 15px; min-height: 2.7em; margin: 0 0 4px; }
+  .slide .opt { padding: 9px 12px; margin-top: 6px; font-size: 13px; }
+  .slide .count { font-size: 11.5px; color: var(--muted); }
+  .slide .count b { color: var(--ok); }
+  .hint { font-size: 11.5px; color: var(--muted); text-align: center; margin: 6px 0 0; }
 
-  /* E: scale strip */
-  .legend { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--muted); padding: 0 2px 4px; position: sticky; top: 0; background: var(--card); z-index: 1; }
-  .strip { display: grid; gap: 4px; }
-  .seg { position: relative; }
-  .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; }
-  .seg span { display: flex; align-items: center; justify-content: center; height: 40px; border: 1px solid var(--border); background: var(--bg1); font: 600 13px var(--font); color: var(--muted); cursor: pointer; border-radius: 8px; text-align: center; line-height: 1.15; padding: 2px; }
-  .seg input:checked + span { background: var(--a1); border-color: var(--a1); color: #fff; }
-  .seg input:focus-visible + span { outline: 2px solid var(--a1); outline-offset: 2px; }
-  .strip.brands { grid-template-columns: repeat(3, 1fr); }
-  .strip.brands .seg span { font-size: 11.5px; height: 36px; }
-  .picked { font-size: 11.5px; color: var(--a1); font-weight: 600; min-height: 1.3em; margin-top: 4px; display: flex; justify-content: space-between; gap: 8px; }
-  .catchlink { all: unset; cursor: pointer; color: var(--muted); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
-  .catchlink[aria-pressed="true"] { color: var(--a1); font-weight: 700; text-decoration: none; }
+  /* C3: transcript */
+  .recap { all: unset; box-sizing: border-box; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; width: 100%; padding: 8px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+  .recap:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
+  .recap .lbl { font-size: 12.5px; color: var(--muted); line-height: 1.3; }
+  .recap .val { font-size: 12px; font-weight: 600; color: var(--a1); background: var(--a1-soft); border-radius: 99px; padding: 3px 9px; flex-shrink: 0; max-width: 50%; text-align: right; }
+  .current { margin-top: 10px; }
+  .upnext { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
 
   /* prototype chrome */
   .state { width: min(390px, 100%); min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; font-size: 12.5px; }
@@ -188,14 +169,14 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 
 const VARIANTS = {
   A: { name: 'Current grid', note: 'The table from poll-iam.html today: options are columns, rows are statements. Baseline to compare against.' },
-  B: { name: 'Row cards', note: 'Each row is its own block. The options become wrapping pills under the row label. No sideways scroll; every label reads in full. Catch-all options use a dashed outline.' },
   C: { name: 'One row at a time', note: 'One row fills the card with the normal .opt list. A single-choice pick moves to the next row. The numbered dots jump between rows and show progress.' },
-  D: { name: 'Accordion', note: 'Rows are a list showing their current answer. Tap a row to open its options. A single-choice pick closes it and opens the next unanswered row.' },
-  E: { name: 'Scale strip', note: 'Ordered scales become a numbered strip with the end labels pinned once on top; the chosen label prints under the strip. The catch-all becomes a text link. Brand columns become a 3-up toggle grid.' },
+  C2: { name: 'Swipe deck', note: 'C as a horizontal deck: every row is a card, the next card peeks in from the right, and a pick slides to it. Swiping works in both directions; the dots jump.' },
+  C3: { name: 'Transcript', note: 'C with memory: answered rows collapse above the current row as label + answer chips. Tap a chip to change that answer. A pick jumps to the next unanswered row.' },
 };
 const KEYS = Object.keys(VARIANTS);
+const nextOpen = j => { const rows = m().rows; const k = rows.findIndex((r, x) => x > j && !answered(r)); if (k >= 0) return k; const a = rows.findIndex(r => !answered(r)); return a >= 0 ? a : rows.length; };
 
-const state = { variant: 'A', matrix: 'favorability', answers: {}, step: 0, open: 0 };
+const state = { variant: 'A', matrix: 'favorability', answers: {}, step: 0, deckAt: 0 };
 
 function readUrl() {
   const fromHash = location.hash.slice(1).toUpperCase();
@@ -233,13 +214,6 @@ const RENDER = {
       `<td><label>${input(r, o, `aria-label="${esc(r + ': ' + o.value)}"`)}</label></td>`).join('')}</tr>`).join('');
     return `<div class="card">${header()}<div class="matrix-wrap"><table class="matrix"><thead><tr><td></td>${head}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
   },
-  B() {
-    const rows = m().rows.map(r => `<fieldset class="rowcard" style="border:0;margin:0;padding-inline:0">
-      <legend class="rowlabel">${answered(r) ? '<span class="tick" aria-hidden="true">✓</span>' : ''}${esc(r)}</legend>
-      <div class="pills">${m().options.map(o => `<label class="pill${o.is_catch_all ? ' catch' : ''}">${input(r, o)}<span>${esc(o.value)}</span></label>`).join('')}</div>
-    </fieldset>`).join('');
-    return `<div class="card">${header()}${rows}</div>`;
-  },
   C() {
     const rows = m().rows, i = Math.min(state.step, rows.length - 1), r = rows[i];
     const dots = rows.map((x, j) => `<button data-step="${j}" class="${answered(x) ? 'done' : ''}${j === i ? ' here' : ''}" aria-label="Row ${j + 1}: ${esc(x)}">${j + 1}</button>`).join('');
@@ -250,38 +224,32 @@ const RENDER = {
       <div class="rownav"><button class="btn" data-step="${i - 1}" ${i === 0 ? 'disabled' : ''}>Previous</button>
       <button class="btn" data-step="${i + 1}" ${i === rows.length - 1 ? 'disabled' : ''}>${m().multi ? 'Next statement' : 'Skip ahead'}</button></div></div>`;
   },
-  D() {
-    const rows = m().rows.map((r, j) => {
-      const a = ans(r), val = Array.isArray(a) ? a.join(', ') : a;
-      const open = state.open === j;
-      return `<div class="acc${answered(r) ? ' answered' : ''}${open ? ' open' : ''}">
-        <button data-open="${j}" aria-expanded="${open}"><span class="lbl">${esc(r)}</span><span class="val">${answered(r) ? esc(val) : 'Choose'}</span></button>
-        ${open ? `<div class="body">${m().options.map(o => `<label class="opt${isOn(r, o.value) ? ' selected' : ''}">${input(r, o)}<span>${esc(o.value)}</span></label>`).join('')}
-          ${m().multi ? `<div class="nav" style="margin-top:8px"><button class="btn" data-open="${j + 1}">Done</button></div>` : ''}</div>` : ''}
-      </div>`;
-    }).join('');
-    return `<div class="card">${header()}${rows}</div>`;
+  C2() {
+    const rows = m().rows, i = Math.min(state.step, rows.length - 1);
+    const dots = rows.map((x, j) => `<button data-step="${j}" class="${answered(x) ? 'done' : ''}${j === i ? ' here' : ''}" aria-label="Row ${j + 1}: ${esc(x)}">${j + 1}</button>`).join('');
+    const slides = rows.map((r, j) => `<section class="slide${answered(r) ? ' done' : ''}" aria-label="Row ${j + 1} of ${rows.length}">
+      <div class="count">${j + 1} of ${rows.length}${answered(r) ? ' <b>✓</b>' : ''}</div>
+      <p class="bigrow">${esc(r)}</p>
+      ${m().options.map(o => `<label class="opt${isOn(r, o.value) ? ' selected' : ''}">${input(r, o)}<span>${esc(o.value)}</span></label>`).join('')}
+      ${m().multi && j < rows.length - 1 ? `<div class="rownav"><button class="btn" data-step="${j + 1}">Next statement</button></div>` : ''}
+    </section>`).join('');
+    return `<div class="card">${header()}<div class="stepper-top"><span></span><div class="rowdots">${dots}</div></div>
+      <div class="deck" id="deck">${slides}</div><p class="hint">Swipe for the next ${m().multi ? 'statement' : 'row'}</p></div>`;
   },
-  E() {
-    if (m().multi) {
-      const rows = m().rows.map(r => `<fieldset class="rowcard" style="border:0;margin:0;padding-inline:0">
-        <legend class="rowlabel">${answered(r) ? '<span class="tick" aria-hidden="true">✓</span>' : ''}${esc(r)}</legend>
-        <div class="strip brands">${m().options.map(o => `<label class="seg">${input(r, o)}<span>${esc(o.value)}</span></label>`).join('')}</div>
-      </fieldset>`).join('');
-      return `<div class="card">${header()}${rows}</div>`;
-    }
-    const scale = m().options.filter(o => !o.is_catch_all), catches = m().options.filter(o => o.is_catch_all);
-    const rows = m().rows.map(r => {
-      const a = ans(r), si = scale.findIndex(o => o.value === a);
-      return `<fieldset class="rowcard" style="border:0;margin:0;padding-inline:0">
-        <legend class="rowlabel">${answered(r) ? '<span class="tick" aria-hidden="true">✓</span>' : ''}${esc(r)}</legend>
-        <div class="strip" style="grid-template-columns:repeat(${scale.length},1fr)">${scale.map((o, j) =>
-          `<label class="seg">${input(r, o, `aria-label="${esc(o.value)}"`)}<span>${j + 1}</span></label>`).join('')}</div>
-        <div class="picked"><span>${si >= 0 ? esc(scale[si].value) : ''}</span>${catches.map(o =>
-          `<button class="catchlink" data-catch="${esc(o.value)}" data-row="${esc(r)}" aria-pressed="${a === o.value}">${esc(o.value)}</button>`).join('')}</div>
-      </fieldset>`;
-    }).join('');
-    return `<div class="card">${header()}<div class="legend"><span>1 · ${esc(scale[0].value)}</span><span>${scale.length} · ${esc(scale[scale.length - 1].value)}</span></div>${rows}</div>`;
+  C3() {
+    const rows = m().rows, i = state.step;
+    const recap = (r, j) => `<button class="recap" data-step="${j}"><span class="lbl">${esc(r)}</span><span class="val">${answered(r) ? esc([].concat(ans(r)).join(', ')) : 'Not answered'}</span></button>`;
+    const before = rows.slice(0, i).map(recap).join('');
+    if (i >= rows.length) return `<div class="card">${header()}${before}<p class="upnext">All ${rows.length} answered. Tap an answer to change it.</p></div>`;
+    const r = rows[i];
+    const after = rows.map((x, j) => j > i && answered(x) ? recap(x, j) : '').join('');
+    const left = rows.filter((x, j) => j > i && !answered(x)).length;
+    return `<div class="card">${header()}${before}
+      <div class="current"><div class="stepper-top"><span>${i + 1} of ${rows.length}</span></div>
+      <p class="bigrow">${esc(r)}</p>
+      ${m().options.map(o => `<label class="opt${isOn(r, o.value) ? ' selected' : ''}">${input(r, o)}<span>${esc(o.value)}</span></label>`).join('')}
+      ${m().multi ? `<div class="rownav"><button class="btn" data-step="${nextOpen(i)}">Next statement</button></div>` : ''}</div>
+      ${after}<p class="upnext">${left ? `${left} more to go` : 'Last one'}</p></div>`;
   },
 };
 
@@ -302,6 +270,23 @@ function render() {
   c.textContent = `${done} of ${m().rows.length} rows answered${all ? ' · Next enabled' : ' · required: Next disabled'}`;
   const shown = Object.fromEntries(Object.entries(state.answers).filter(([k]) => k.startsWith(state.matrix + '__')));
   document.getElementById('answers').textContent = JSON.stringify(shown, null, 1) || '{}';
+  if (state.variant === 'C2') placeDeck();
+}
+
+function placeDeck() {
+  const deck = document.getElementById('deck'), slides = deck.children;
+  const left = j => slides[j].offsetLeft - (deck.clientWidth - slides[j].clientWidth) / 2;
+  const to = Math.min(state.step, slides.length - 1);
+  deck.scrollLeft = left(Math.min(state.deckAt, slides.length - 1));
+  if (to !== state.deckAt) setTimeout(() => deck.scrollTo({ left: left(to), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }), 220);
+  state.deckAt = to;
+  let t;
+  deck.onscroll = () => { clearTimeout(t); t = setTimeout(() => {
+    let best = 0;
+    for (let j = 0; j < slides.length; j++) if (Math.abs(left(j) - deck.scrollLeft) < Math.abs(left(best) - deck.scrollLeft)) best = j;
+    state.step = state.deckAt = best;
+    document.querySelectorAll('.rowdots button').forEach((b, j) => b.classList.toggle('here', j === best));
+  }, 120); };
 }
 
 document.addEventListener('change', e => {
@@ -309,17 +294,18 @@ document.addEventListener('change', e => {
   if (!t.dataset.row) return;
   const single = pick(t.dataset.row, t.value);
   const rows = m().rows, j = rows.indexOf(t.dataset.row);
-  if (single && state.variant === 'C' && j < rows.length - 1) { render(); setTimeout(() => { state.step = j + 1; render(); }, 280); return; }
-  if (single && state.variant === 'D') { const nxt = rows.findIndex(r => !answered(r)); state.open = nxt; }
+  if (single && (state.variant === 'C' || state.variant === 'C3')) {
+    const nxt = state.variant === 'C' ? Math.min(j + 1, rows.length - 1) : nextOpen(j);
+    render(); setTimeout(() => { state.step = nxt; render(); }, 280); return;
+  }
+  if (single && state.variant === 'C2' && j < rows.length - 1) state.step = j + 1;
   render();
 });
 document.addEventListener('click', e => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.matrix) { state.matrix = t.dataset.matrix; state.step = 0; state.open = 0; render(); }
+  if (t.dataset.matrix) { state.matrix = t.dataset.matrix; state.step = 0; state.deckAt = 0; render(); }
   else if (t.dataset.step != null) { state.step = Math.max(0, +t.dataset.step); render(); }
-  else if (t.dataset.open != null) { const j = +t.dataset.open; state.open = state.open === j ? -1 : j; render(); }
-  else if (t.dataset.catch) { pick(t.dataset.row, t.dataset.catch); render(); }
 });
 const cycle = d => setVariant(KEYS[(KEYS.indexOf(state.variant) + d + KEYS.length) % KEYS.length]);
 document.getElementById('prev').onclick = () => cycle(-1);
