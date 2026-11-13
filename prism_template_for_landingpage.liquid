@@ -470,7 +470,7 @@ if (!window.PrismPoll) {
       // A re-render rebuilds the deck, so put it back on the row the reader was on.
       function placeDecks() {
         ROOT.querySelectorAll('[data-deck]').forEach(deck => {
-          const mk = deck.dataset.pp-deck;
+          const mk = deck.dataset.deck;
           const slides = deck.children;
           deck.scrollLeft = slideLeft(deck, Math.min(state.deckAt[mk] || 0, slides.length - 1));
           let settle;
