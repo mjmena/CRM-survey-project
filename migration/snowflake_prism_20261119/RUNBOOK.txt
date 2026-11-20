@@ -107,7 +107,10 @@ VALIDATION
   passed; git diff --check passed. All workflow old-schema references are removed,
   including both SQL forms of the formerly unqualified response INSERT.
 - Both additional configuration patches pass git apply --check.
-- Full SQL rehearsal status is recorded separately in validation.json.
+- Full SQL rehearsal PASSED: ten snapshot count/hash pairs and 22 parity and
+  uniqueness checks, across 274 successful statements. Rollback preserved 108,579
+  distinct responses including both synthetic cutover responses. All disposable
+  objects were removed. Production has not been cut over.
 
 No production workflow deployment, source-table replacement, Jira transition,
 external message, or schema retirement has been performed by this preparation.
