@@ -1,4 +1,4 @@
--- NOT APPLIED. Freeze/drain writers before use. Source physical names must exist.
+-- NOT APPLIED. Pause/drain dimension writers; keep ingest live. Source physical names must exist.
 -- Keep all post-cutover responses. Full dimension copies preserve updates/deletes.
 -- Run via a fail-fast client: any error requires ROLLBACK, never a later COMMIT.
 USE ROLE MARKETING_ENGINEER;
@@ -42,5 +42,7 @@ INSERT INTO MCC_RAW.MARKETING_DEV.DIM_RESPONDENT_DEMOGRAPHICS  SELECT * FROM MCC
 
 COMMIT;
 
--- Compare full source/destination counts and hashes, then restore the old workflow commit.
+-- Follow RUNBOOK.txt's reverse live-ingest handoff, then repeat this file after destination writes drain.
+-- Source may contain newer old-side responses; verify destination is a payload-identical subset.
+-- Keep dimension writers paused until final reconciliation and validation complete.
 -- New-schema objects remain intact for investigation; do not drop them.

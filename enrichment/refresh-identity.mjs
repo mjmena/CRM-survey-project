@@ -153,7 +153,7 @@ function main() {
   // Full rebuild over all resolved HEMs (cheap output); picks up this Poll's rows.
   console.error(`[${pollId}] rebuilding DIM_RESPONDENT_DEMOGRAPHICS (AA join)…`);
   snowsql(["-q",
-    "CREATE OR REPLACE TABLE MCC_MARKETING.PRISM.DIM_RESPONDENT_DEMOGRAPHICS AS " +
+    "CREATE OR REPLACE TABLE MCC_MARKETING.PRISM.DIM_RESPONDENT_DEMOGRAPHICS COPY GRANTS AS " +
     "SELECT * FROM MCC_MARKETING.PRISM.V_RESPONDENT_DEMOGRAPHICS"]);
   console.error(`[${pollId}] done.`);
 }

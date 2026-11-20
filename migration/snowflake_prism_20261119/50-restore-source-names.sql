@@ -1,5 +1,6 @@
 -- NOT APPLIED. ONLY for rollback after 40-compatibility COMPLETED.
--- Freeze and drain all new and old writers before beginning rollback.
+-- Pause/drain dimension writers and reporting. Keep destination ingest live.
+-- Confirm all ingest executions target the destination before restoring names.
 -- First restore the original physical names. Never drop a production table.
 -- Original response virtual columns become valid again when its name is restored.
 USE ROLE MARKETING_ENGINEER;

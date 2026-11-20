@@ -67,9 +67,10 @@ PREPARED ARTIFACTS
   These latter two patches apply cleanly but are not applied or runtime-tested.
 
 CUTOVER ORDER — NOT EXECUTED
-1. Resolve the Braze CDI inventory and the external-reader handoff. The drafted
-   compatibility views cover old-name SELECT consumers; if those are rejected,
-   arrange every external consumer's repoint before switching production.
+1. Preserve external readers with the compatibility views and captured SELECT
+   grants. Braze supports Snowflake views; the specific CDI inventory remains
+   unverified because the current account lacks permission. Keep the aliases
+   until every external consumer's direct repoint is confirmed.
 2. Verify the source definitions/grants and production git head have not changed.
    Capture each workflow's current activation state. Pause/drain catalog sync,
    taxonomy, text classification, reporting and MCP writes; retain live ingest.
@@ -83,8 +84,8 @@ CUTOVER ORDER — NOT EXECUTED
 5. Run 20-catchup.sql until there are no missing old-side rows, then 30-verify.sql.
    Keep all dimension writers paused until these checks pass.
 6. After confirming every writer uses the destination, apply 40-compatibility.sql
-   if selected. There is a short per-object gap between RENAME and CREATE VIEW;
-   readers may need to retry during that handoff. Do not claim an atomic switch.
+   to preserve existing readers. There is a short per-object gap between RENAME
+   and CREATE VIEW; readers may need to retry. Do not claim an atomic switch.
    Repoint known readers directly where their owners can deploy the change.
 7. Restore the previously captured workflow states. Verify an authorized test
    response through the actual public endpoint, its persisted new-schema record,
@@ -94,12 +95,32 @@ CUTOVER ORDER — NOT EXECUTED
    do not allow a future deploy to restore the old literal references.
 
 ROLLBACK
-Freeze and drain both sides' writers. If compatibility was fully installed, run
-50-restore-source-names.sql. If it failed partway, inspect each object's kind and
-restore only completed renames; never blindly run the whole file. Then run
-60-rollback-reconcile.sql with stop-on-error and explicit ROLLBACK on any error.
-Check complete parity before restoring the prior workflow commit and activation
-states. Keep the destination intact for investigation. Do not drop either schema.
+Keep the native HTTP ingest workflow active throughout rollback: it has no
+durable capture/replay queue. Pause/drain dimension writers, MCP and reporting,
+including manual enrichment scripts. Confirm deployed ingest targets the
+destination and earlier source-targeting executions have drained before restoring
+source names. If this cannot be established, retain the current names and ingest
+configuration while diagnosing; do not pause submissions to create a quiet window.
+
+If compatibility was fully installed, run 50-restore-source-names.sql. If it failed
+partway, inspect each object's kind and restore only completed renames; never
+blindly run the whole file. Destination ingest continues during these DDL changes.
+Run 60-rollback-reconcile.sql with stop-on-error and explicit ROLLBACK on any error.
+It is safe to repeat while both ingest versions overlap: IDs use disjoint ranges.
+
+Restore the prior workflow commit (production 29d5391) while keeping ingest active
+and all other writers paused. Verify the deployed INSERT targets the restored
+source table, prove a new submission persists there, and wait for destination
+ingest executions to drain using execution status and recent query history.
+Then repeat 60-rollback-reconcile.sql to retain late destination submissions.
+Do not run reconciliation concurrently with another copy of itself.
+
+Before resuming other workflows, verify every destination response exists in the
+source with identical RAW_DATA and INSERTED_AT, no null/duplicate INGESTION_IDs
+exist in either table, and all nine other tables match by count/hash. The source
+may legitimately contain extra responses accepted after the reverse handoff;
+full response count equality is not the rollback criterion. Restore the captured
+activation states only after these checks pass. Keep both schemas and archives.
 
 VALIDATION
 - Pipedream existing suite: 35 tests passed (3 files).
@@ -107,6 +128,10 @@ VALIDATION
   passed; git diff --check passed. All workflow old-schema references are removed,
   including both SQL forms of the formerly unqualified response INSERT.
 - Both additional configuration patches pass git apply --check.
+- Review fixes: demographics replacement now preserves grants with COPY GRANTS;
+  rollback retains live ingest during the reverse handoff. A second disposable
+  Snowflake rehearsal passed 298 statements, verified preserved reader grants,
+  and retained both a late destination response and a new source-side response.
 - Full SQL rehearsal PASSED: ten snapshot count/hash pairs and 22 parity and
   uniqueness checks, across 274 successful statements. Rollback preserved 108,579
   distinct responses including both synthetic cutover responses. All disposable
