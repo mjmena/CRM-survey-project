@@ -1,4 +1,4 @@
-const SCHEMA = "MCC_RAW.MARKETING_DEV";
+const SCHEMA = "MCC_MARKETING.PRISM";
 
 export default defineComponent({
   name: "Build SQL",

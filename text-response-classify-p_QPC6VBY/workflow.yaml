@@ -17,7 +17,7 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS tgt
         USING (
             SELECT sub.POLL_ID, sub.QUESTION_KEY,
                    LOWER(TRIM(sub.ANSWER_TEXT)) AS OPTION_VALUE,
@@ -26,12 +26,12 @@ steps:
                 SELECT POLL_ID,
                        a.value:question::STRING AS QUESTION_KEY,
                        a.value:answer::STRING   AS ANSWER_TEXT
-                FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES,
                      LATERAL FLATTEN(input => RAW_DATA:answers) a
                 WHERE TYPEOF(a.value:answer) = 'VARCHAR'
                   AND TRIM(a.value:answer::STRING) <> ''
             ) sub
-            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
                 ON q.POLL_ID = sub.POLL_ID AND q.QUESTION_KEY = sub.QUESTION_KEY
             WHERE q.QUESTION_TYPE = 'text'
             GROUP BY sub.POLL_ID, sub.QUESTION_KEY, LOWER(TRIM(sub.ANSWER_TEXT))
@@ -42,7 +42,7 @@ steps:
         WHEN NOT MATCHED THEN INSERT (POLL_ID, QUESTION_KEY, OPTION_VALUE, OPTION_SOURCE)
             VALUES (src.POLL_ID, src.QUESTION_KEY, src.OPTION_VALUE, 'response')
       query: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS tgt
         USING (
             SELECT sub.POLL_ID, sub.QUESTION_KEY,
                    LOWER(TRIM(sub.ANSWER_TEXT)) AS OPTION_VALUE,
@@ -51,12 +51,12 @@ steps:
                 SELECT POLL_ID,
                        a.value:question::STRING AS QUESTION_KEY,
                        a.value:answer::STRING   AS ANSWER_TEXT
-                FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+                FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES,
                      LATERAL FLATTEN(input => RAW_DATA:answers) a
                 WHERE TYPEOF(a.value:answer) = 'VARCHAR'
                   AND TRIM(a.value:answer::STRING) <> ''
             ) sub
-            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+            JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
                 ON q.POLL_ID = sub.POLL_ID AND q.QUESTION_KEY = sub.QUESTION_KEY
             WHERE q.QUESTION_TYPE = 'text'
             GROUP BY sub.POLL_ID, sub.QUESTION_KEY, LOWER(TRIM(sub.ANSWER_TEXT))
@@ -77,12 +77,12 @@ steps:
       value: |-
         SELECT o.OPTION_ID, o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE,
                q.QUESTION_TEXT, q.QUESTION_TYPE
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
-        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
+        JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
           ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
         WHERE o.OPTION_SOURCE = 'response'
           AND NOT EXISTS (
-            SELECT 1 FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
+            SELECT 1 FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY t
             WHERE t.OPTION_ID = o.OPTION_ID
           )
         ORDER BY o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE
@@ -90,12 +90,12 @@ steps:
       query: |-
         SELECT o.OPTION_ID, o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE,
                q.QUESTION_TEXT, q.QUESTION_TYPE
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
-        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
+        JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
           ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
         WHERE o.OPTION_SOURCE = 'response'
           AND NOT EXISTS (
-            SELECT 1 FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
+            SELECT 1 FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY t
             WHERE t.OPTION_ID = o.OPTION_ID
           )
         ORDER BY o.POLL_ID, o.QUESTION_KEY, o.OPTION_VALUE
@@ -115,11 +115,11 @@ steps:
     sql:
       value: |-
         SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY
         ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
       query: |-
         SELECT DISTINCT BUCKET, TAXONOMY_PATH, DEMOGRAPHIC_KEY
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY
         ORDER BY BUCKET, COALESCE(TAXONOMY_PATH, DEMOGRAPHIC_KEY)
       params: []
 - namespace: build_text_prompt
@@ -155,7 +155,7 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY AS tgt
         USING (
             SELECT
                 o.OPTION_ID,
@@ -182,7 +182,7 @@ steps:
                     s.value:confidence::FLOAT         AS CONFIDENCE
                 FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
             ) src
-            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
               ON o.POLL_ID      = src.POLL_ID
              AND o.QUESTION_KEY = src.QUESTION_KEY
              AND o.OPTION_VALUE = LOWER(TRIM(src.OPTION_VALUE))
@@ -211,7 +211,7 @@ steps:
             resolved.CONFIDENCE
         )
       query: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY AS tgt
         USING (
             SELECT
                 o.OPTION_ID,
@@ -238,7 +238,7 @@ steps:
                     s.value:confidence::FLOAT         AS CONFIDENCE
                 FROM TABLE(FLATTEN(INPUT => PARSE_JSON($${{steps.flatten_results.$return_value.rows_json}}$$))) s
             ) src
-            JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+            JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
               ON o.POLL_ID      = src.POLL_ID
              AND o.QUESTION_KEY = src.QUESTION_KEY
              AND o.OPTION_VALUE = LOWER(TRIM(src.OPTION_VALUE))

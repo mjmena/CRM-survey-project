@@ -28,7 +28,7 @@ WITH resp AS (
         INGESTION_ID,
         NULLIF(RAW_DATA:device_id::STRING, '')   AS DEVICE_ID,
         NULLIF(RAW_DATA:external_id::STRING, '')  AS PAYLOAD_EXTERNAL_ID
-    FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+    FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES
     WHERE POLL_ID = '&poll_id'
 ),
 dev_user AS (   -- one recovered USER_ID per device: most-frequent, then most-recent

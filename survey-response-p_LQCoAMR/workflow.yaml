@@ -21,10 +21,10 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
+        INSERT INTO MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES (RAW_DATA)
         SELECT PARSE_JSON({{JSON.stringify(steps.code.$return_value)}});
       query: |-
-        INSERT INTO STG_SURVEY_RESPONSES (RAW_DATA)
+        INSERT INTO MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES (RAW_DATA)
         SELECT PARSE_JSON(?);
       params:
       - "{{JSON.stringify(steps.code.$return_value)}}"
