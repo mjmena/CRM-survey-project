@@ -20,8 +20,8 @@ import { fileURLToPath } from "node:url";
 import { computeEventWindow, resolveHem } from "./resolve-identity.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const TABLE = "MCC_RAW.MARKETING_DEV.DIM_RESPONDENT_IDENTITY";
-const STG = "MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES";
+const TABLE = "MCC_MARKETING.PRISM.DIM_RESPONDENT_IDENTITY";
+const STG = "MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES";
 const BATCH = 2000;
 
 function snowsql(args, { input } = {}) {
@@ -153,8 +153,8 @@ function main() {
   // Full rebuild over all resolved HEMs (cheap output); picks up this Poll's rows.
   console.error(`[${pollId}] rebuilding DIM_RESPONDENT_DEMOGRAPHICS (AA join)…`);
   snowsql(["-q",
-    "CREATE OR REPLACE TABLE MCC_RAW.MARKETING_DEV.DIM_RESPONDENT_DEMOGRAPHICS AS " +
-    "SELECT * FROM MCC_RAW.MARKETING_DEV.V_RESPONDENT_DEMOGRAPHICS"]);
+    "CREATE OR REPLACE TABLE MCC_MARKETING.PRISM.DIM_RESPONDENT_DEMOGRAPHICS AS " +
+    "SELECT * FROM MCC_MARKETING.PRISM.V_RESPONDENT_DEMOGRAPHICS"]);
   console.error(`[${pollId}] done.`);
 }
 

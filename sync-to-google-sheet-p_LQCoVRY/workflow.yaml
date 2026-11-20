@@ -30,7 +30,7 @@ steps:
                 a.value:question::STRING  AS question_key,
                 a.value:answer            AS answer_variant,
                 TYPEOF(a.value:answer)    AS answer_typeof
-            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+            FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
             WHERE RAW_DATA:poll_id::STRING = '{{steps.extract_params.$return_value.poll_id}}'
         ),
@@ -52,7 +52,7 @@ steps:
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
-            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES
             WHERE RAW_DATA:poll_id::STRING = '{{steps.extract_params.$return_value.poll_id}}'
             GROUP BY 1
         )
@@ -67,9 +67,9 @@ steps:
         JOIN totals t ON tally.poll_id = t.poll_id
         LEFT JOIN qorder qo
             ON qo.poll_id = tally.poll_id AND qo.question_key = tally.question_key
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        LEFT JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
             ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        LEFT JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
             ON o.POLL_ID = tally.poll_id
             AND o.QUESTION_KEY = tally.question_key
             AND o.OPTION_VALUE = tally.answer_value
@@ -83,7 +83,7 @@ steps:
                 a.value:question::STRING  AS question_key,
                 a.value:answer            AS answer_variant,
                 TYPEOF(a.value:answer)    AS answer_typeof
-            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES,
+            FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES,
                  LATERAL FLATTEN(input => RAW_DATA:answers) a
             WHERE RAW_DATA:poll_id::STRING = '{{steps.extract_params.$return_value.poll_id}}'
         ),
@@ -105,7 +105,7 @@ steps:
         ),
         totals AS (
             SELECT RAW_DATA:poll_id::STRING AS poll_id, COUNT(*) AS total_responses
-            FROM MCC_RAW.MARKETING_DEV.STG_SURVEY_RESPONSES
+            FROM MCC_MARKETING.PRISM.STG_SURVEY_RESPONSES
             WHERE RAW_DATA:poll_id::STRING = '{{steps.extract_params.$return_value.poll_id}}'
             GROUP BY 1
         )
@@ -120,9 +120,9 @@ steps:
         JOIN totals t ON tally.poll_id = t.poll_id
         LEFT JOIN qorder qo
             ON qo.poll_id = tally.poll_id AND qo.question_key = tally.question_key
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        LEFT JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
             ON q.POLL_ID = tally.poll_id AND q.QUESTION_KEY = tally.question_key
-        LEFT JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
+        LEFT JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
             ON o.POLL_ID = tally.poll_id
             AND o.QUESTION_KEY = tally.question_key
             AND o.OPTION_VALUE = tally.answer_value
@@ -158,7 +158,7 @@ steps:
             AFFINITY_INVESTOR,
             AFFINITY_HOMEOWNER,
             TO_JSON(ANSWERS)       AS ANSWERS
-        FROM MCC_RAW.MARKETING_DEV.V_SURVEY_RESPONSE_DEMOGRAPHICS
+        FROM MCC_MARKETING.PRISM.V_SURVEY_RESPONSE_DEMOGRAPHICS
         WHERE POLL_ID = '{{steps.extract_params.$return_value.poll_id}}'
         ORDER BY SUBMITTED_AT
       query: |-
@@ -183,7 +183,7 @@ steps:
             AFFINITY_INVESTOR,
             AFFINITY_HOMEOWNER,
             TO_JSON(ANSWERS)       AS ANSWERS
-        FROM MCC_RAW.MARKETING_DEV.V_SURVEY_RESPONSE_DEMOGRAPHICS
+        FROM MCC_MARKETING.PRISM.V_SURVEY_RESPONSE_DEMOGRAPHICS
         WHERE POLL_ID = '{{steps.extract_params.$return_value.poll_id}}'
         ORDER BY SUBMITTED_AT
       params: []

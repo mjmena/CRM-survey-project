@@ -1,0 +1,114 @@
+PRISM Snowflake migration — preparation and rehearsal
+Captured November 19, 2026. Production has NOT been cut over.
+
+Requested destination: MCC_MARKETING.PRISM
+Current production source: MCC_RAW.MARKETING_DEV
+Planning record: https://mcclatchy.atlassian.net/browse/CRMA-1377
+
+LIVE FACTS
+- The destination was empty at initial inspection.
+- Ten source tables contain history, including three legacy tables and the
+  STG_SURVEY_RESPONSES_DUPES_20261113 archive. Three active views must be rebuilt.
+- STG_SURVEY_RESPONSES: 108,577 rows, 108,577 distinct IDs, max ID 376,601.
+- DIM_SURVEY_OPTIONS: 483 rows, 483 distinct IDs, max ID 74,725.
+- Survey ingestion is currently Pipedream, not Cloud Run. GET of workflow
+  p_LQCoAMR shows the datastore/tally code followed by the Snowflake action.
+  The documented prism-ingest Cloud Run service is absent in the named project.
+- Read/write history is now accessible with the configured service account.
+  TH_APIUSER / TH_APIROLE actively reads responses, questions and options.
+  Harbor's registry also pins three PRISM dependencies to the old schema.
+- Both legacy streams are stale; the remaining legacy taxonomy task is suspended.
+  The old V_SURVEY_TAXONOMY is broken. Do not activate or migrate those as live jobs.
+- Braze CDI is NOT verified: the API rejected this IP; the signed-in dashboard
+  says Edit Cloud Data Ingestion permission is required. See the saved snapshot.
+
+PROVEN FAILURE AND ALTERNATIVE
+07-scratch-identity-verified.json demonstrates 25,300 overlapping newly generated
+IDs after alternating inserts into a source and its clone. The first few values
+looked disjoint; only testing beyond allocation blocks exposed the collisions.
+Do not use a clone plus an INGESTION_ID anti-join while both generators run.
+
+08-scratch-disjoint-ids.json verifies a separate destination range starting at
+1,000,000,000,000: 20,003 distinct rows after historical copy plus old/new writes
+and catch-up, zero payload mismatches, and 20,004 distinct rows after rollback
+reconciliation and one new source write. The same approach is used for OPTION_ID.
+Existing IDs are preserved. New IDs remain within exact JavaScript integer range.
+Runtime SQL guards reject source IDs outside the reserved old range and reject
+same-ID/different-payload collisions. Never interpret a NOORDER ID as a watermark.
+
+A rehearsal also exposed a GET_DDL replay incompatibility: the legacy POLL_ID
+column is VARCHAR(16777216), while a bare VARCHAR cast now resolves to a larger
+width. 10-prepare.sql explicitly preserves the old virtual-column expression width.
+
+PREPARED ARTIFACTS
+- 09-object-definitions.json: current DDL, grants, row counts/hashes, ID checks.
+- 03-consumers.json: 90-day aggregate access history and view dependencies.
+- 10-prepare.sql: one snapshot, recreate the two identity tables with a separate
+  allocation range, clone the other eight, rebuild three views, and show parity.
+  Inherit destination future grants and replay existing SELECT grantees.
+  Keep MARKETING_ENGINEER as view owner to retain the Audience Acuity dependency.
+- 20-catchup.sql: collision-checked anti-join reconciliation of late responses.
+- 30-verify.sql: counts/hashes and ID uniqueness; every status must be PASS.
+- 40-compatibility.sql: archive original tables by renaming; replace old names
+  with read-only views pointing to the new schema. Preserve original SELECT grants.
+- 50-restore-source-names.sql and 60-rollback-reconcile.sql: restore physical names,
+  retain post-cutover responses, and reconcile dimension updates/deletes back.
+- build_sql.py regenerates these SQL files from the captured definitions.
+- 11-rehearsal.py exercises the generated SQL on uniquely prefixed disposable
+  copies, including a late old-side response, a new destination response,
+  compatibility views, rollback, and cleanup. Inspect 11-rehearsal.json for results.
+- pipedream-runtime.patch / worktree:
+  the prism-snowflake-migration-20261119 feature branch
+  Branch: prism-snowflake-migration-20261119, based on production 29d5391.
+  Eight files: six workflow configurations/code plus two local enrichment files.
+- prism-config.patch: future Python default/deploy/readme/test references.
+- harbor-registry.patch: Harbor's three external locations and schema-flip test.
+  These latter two patches apply cleanly but are not applied or runtime-tested.
+
+CUTOVER ORDER — NOT EXECUTED
+1. Resolve the Braze CDI inventory and the external-reader handoff. The drafted
+   compatibility views cover old-name SELECT consumers; if those are rejected,
+   arrange every external consumer's repoint before switching production.
+2. Verify the source definitions/grants and production git head have not changed.
+   Capture each workflow's current activation state. Pause/drain catalog sync,
+   taxonomy, text classification, reporting and MCP writes; retain live ingest.
+   Also stop any manual enrichment/classifier scripts for the cutover window.
+3. Run 10-prepare.sql in one session with stop-on-error. Verify every source
+   snapshot/destination count and hash pair matches and all views compile.
+4. Deploy the prepared six-workflow change together via the synced production
+   branch. Verify deployed SQL/configuration as well as custom-step code hashes.
+   Wait for propagation and old ingest runs to drain; no idle interval alone
+   proves drain. Use workflow execution status and recent Snowflake query history.
+5. Run 20-catchup.sql until there are no missing old-side rows, then 30-verify.sql.
+   Keep all dimension writers paused until these checks pass.
+6. After confirming every writer uses the destination, apply 40-compatibility.sql
+   if selected. There is a short per-object gap between RENAME and CREATE VIEW;
+   readers may need to retry during that handoff. Do not claim an atomic switch.
+   Repoint known readers directly where their owners can deploy the change.
+7. Restore the previously captured workflow states. Verify an authorized test
+   response through the actual public endpoint, its persisted new-schema record,
+   tally behavior, a report, classification and downstream Harbor reads. Confirm
+   there are no successful writes to old archived tables. Keep old archives.
+8. Land the Python/Harbor configuration changes through their repo review flows;
+   do not allow a future deploy to restore the old literal references.
+
+ROLLBACK
+Freeze and drain both sides' writers. If compatibility was fully installed, run
+50-restore-source-names.sql. If it failed partway, inspect each object's kind and
+restore only completed renames; never blindly run the whole file. Then run
+60-rollback-reconcile.sql with stop-on-error and explicit ROLLBACK on any error.
+Check complete parity before restoring the prior workflow commit and activation
+states. Keep the destination intact for investigation. Do not drop either schema.
+
+VALIDATION
+- Pipedream existing suite: 35 tests passed (3 files).
+- Five changed workflow YAML files parsed successfully; modified JS syntax checks
+  passed; git diff --check passed. All workflow old-schema references are removed,
+  including both SQL forms of the formerly unqualified response INSERT.
+- Both additional configuration patches pass git apply --check.
+- Full SQL rehearsal status is recorded separately in validation.json.
+
+No production workflow deployment, source-table replacement, Jira transition,
+external message, or schema retirement has been performed by this preparation.
+
+Evidence and scratch tooling are stored locally in claude-skills/artifacts/prism-migration-2026-11-19; only the SQL phases and this runbook are included in this PR.

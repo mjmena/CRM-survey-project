@@ -27,7 +27,7 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS AS tgt
         USING (
             SELECT
                 s.value:poll_id::STRING            AS POLL_ID,
@@ -67,7 +67,7 @@ steps:
             src.AUTO_ADVANCE, src.DEFINITION_VERSION
         )
       query: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS AS tgt
         USING (
             SELECT
                 s.value:poll_id::STRING            AS POLL_ID,
@@ -115,7 +115,7 @@ steps:
       authProvisionId: apn_yghdQYJ
     sql:
       value: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS AS tgt
         USING (
             SELECT
                 s.value:poll_id::STRING            AS POLL_ID,
@@ -144,7 +144,7 @@ steps:
             src.OPTION_LABEL, src.OPTION_DESCRIPTION, src.IS_CATCH_ALL, src.SORT_ORDER
         )
       query: |-
-        MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS AS tgt
+        MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS AS tgt
         USING (
             SELECT
                 s.value:poll_id::STRING            AS POLL_ID,
@@ -186,16 +186,16 @@ steps:
         -- Mirrors skip_if_classified (already_classified = 0) and excludes
         -- all-catch-all polls so they are not re-handed-off every sync.
         SELECT DISTINCT o.POLL_ID
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
-        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
+        JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
           ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
         WHERE o.OPTION_SOURCE = 'catalog'
           AND o.IS_CATCH_ALL = FALSE
           AND q.QUESTION_TYPE IN ('single', 'multi')
           AND NOT EXISTS (
               SELECT 1
-              FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY tx
-              JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
+              FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY tx
+              JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
               WHERE o2.POLL_ID = o.POLL_ID
           )
         ORDER BY o.POLL_ID
@@ -205,16 +205,16 @@ steps:
         -- Mirrors skip_if_classified (already_classified = 0) and excludes
         -- all-catch-all polls so they are not re-handed-off every sync.
         SELECT DISTINCT o.POLL_ID
-        FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o
-        JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_QUESTIONS q
+        FROM MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o
+        JOIN MCC_MARKETING.PRISM.DIM_SURVEY_QUESTIONS q
           ON q.POLL_ID = o.POLL_ID AND q.QUESTION_KEY = o.QUESTION_KEY
         WHERE o.OPTION_SOURCE = 'catalog'
           AND o.IS_CATCH_ALL = FALSE
           AND q.QUESTION_TYPE IN ('single', 'multi')
           AND NOT EXISTS (
               SELECT 1
-              FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY tx
-              JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
+              FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY tx
+              JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o2 ON o2.OPTION_ID = tx.OPTION_ID
               WHERE o2.POLL_ID = o.POLL_ID
           )
         ORDER BY o.POLL_ID
