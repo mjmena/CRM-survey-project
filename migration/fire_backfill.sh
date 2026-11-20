@@ -18,8 +18,8 @@ POLLS=(
 
 taxrows() {
   snowsql -o friendly=false -o header=false -o output_format=tsv -o timing=false -q "
-    SELECT COUNT(*) FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY t
-    JOIN MCC_RAW.MARKETING_DEV.DIM_SURVEY_OPTIONS o ON o.OPTION_ID=t.OPTION_ID
+    SELECT COUNT(*) FROM MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY t
+    JOIN MCC_MARKETING.PRISM.DIM_SURVEY_OPTIONS o ON o.OPTION_ID=t.OPTION_ID
     WHERE o.POLL_ID='$1';" 2>/dev/null | tr -dc '0-9'
 }
 

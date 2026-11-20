@@ -60,7 +60,8 @@ PREPARED ARTIFACTS
 - pipedream-runtime.patch / worktree:
   the prism-snowflake-migration-20261119 feature branch
   Branch: prism-snowflake-migration-20261119, based on production 29d5391.
-  Eight files: six workflow configurations/code plus two local enrichment files.
+  Ten files: six workflow configurations/code, two local enrichment files,
+  the legacy taxonomy SQL generator and the manual backfill helper.
 - prism-config.patch: future Python default/deploy/readme/test references.
 - harbor-registry.patch: Harbor's three external locations and schema-flip test.
   These latter two patches apply cleanly but are not applied or runtime-tested.

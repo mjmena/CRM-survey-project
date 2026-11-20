@@ -188,7 +188,7 @@ function flattenResults(aiResults) {
 function generateMergeSql(flatRows) {
   const jsonData = JSON.stringify(flatRows);
 
-  return `MERGE INTO MCC_RAW.MARKETING_DEV.DIM_SURVEY_TAXONOMY AS tgt
+  return `MERGE INTO MCC_MARKETING.PRISM.DIM_SURVEY_TAXONOMY AS tgt
 USING (
     SELECT
         s.value:poll_id::STRING        AS POLL_ID,
@@ -232,7 +232,7 @@ async function main() {
     catalogRows = JSON.parse(readFileSync(inputFile, "utf-8"));
   } else {
     console.error("No --input file provided. Please provide a JSON export of DIM_SURVEY_CATALOG.");
-    console.error("Query: SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL FROM MCC_RAW.MARKETING_DEV.DIM_SURVEY_CATALOG ORDER BY POLL_ID, QUESTION_KEY");
+    console.error("Query: SELECT POLL_ID, QUESTION_KEY, QUESTION_TEXT, OPTION_VALUE, OPTION_LABEL FROM MCC_MARKETING.PRISM.DIM_SURVEY_CATALOG ORDER BY POLL_ID, QUESTION_KEY");
     process.exit(1);
   }
 
